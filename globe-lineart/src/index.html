@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<meta name="description" content="Interactive 3D globe visualization for volleyball statistics by country">
+	<meta name="author" content="Volleyball Globe Team">
+	<title>Volleyball Globe - Interactive World Statistics</title>
+	
+	<!-- Stylesheets -->
+	<link rel="stylesheet" href="css/main.css">
+	<link rel="stylesheet" href="css/cards.css">
+	<link rel="stylesheet" href="css/globe.css">
+</head>
+<body class="men">
+	<!-- Gender toggle control -->
+	<div class="controls">
+		<button id="genderToggle" data-gender="men" aria-label="Toggle between men's and women's volleyball">
+			Men
+		</button>
+	</div>
+	
+	<!-- Information cards -->
+	<!-- Top Left: Country name and flag -->
+	<div class="card card-top-left" id="countryCard" role="region" aria-label="Country information">
+		<button class="close-btn" id="closeBtn" aria-label="Close country information">&times;</button>
+		<div class="flag-container" id="flagContainer" aria-live="polite"></div>
+		<h2 id="countryName"></h2>
+	</div>
+	
+	<!-- Bottom Left: World ranking -->
+	<div class="card card-bottom-left" id="rankingCard" role="region" aria-label="World ranking">
+		<h3>Rank</h3>
+		<div class="ranking-value" id="rankingValue" aria-live="polite">—</div>
+	</div>
+	
+	<!-- Top Right: Active players -->
+	<div class="card card-top-right" id="playersCard" role="region" aria-label="Active players">
+		<h3>Players</h3>
+		<div class="stat-value" id="playersValue" aria-live="polite">—</div>
+	</div>
+	
+	<!-- Bottom Right: Tournaments -->
+	<div class="card card-bottom-right" id="tournamentsCard" role="region" aria-label="Tournaments">
+		<h3>Events</h3>
+		<div class="stat-value" id="tournamentsValue" aria-live="polite">—</div>
+	</div>
+	
+	<!-- Globe container -->
+	<div id="globe" role="application" aria-label="Interactive volleyball statistics globe"></div>
+
+	<!-- External dependencies -->
+	<script src="https://d3js.org/d3.v7.min.js"></script>
+	<script src="https://unpkg.com/topojson-client@3/dist/topojson-client.min.js"></script>
+	
+	<!-- Application scripts -->
+	<script type="module" src="js/app.js"></script>
+</body>
+</html>

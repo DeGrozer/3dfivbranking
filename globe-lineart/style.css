@@ -1,0 +1,167 @@
+html,body{ height:100%; margin:0; background:#1a1f2e; color:#fff; font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial; transition: background-color 0.5s ease; }
+body.men{ background:#2c3e7a; }
+body.women{ background:#7a3e3b; }
+#globe{ width:100%; height:100vh; display:flex; align-items:center; justify-content:center; position: relative; }
+svg{ width:min(960px,95vw); height: min(640px,85vh); background:transparent; }
+
+/* Cards */
+.card{ 
+  position: fixed; 
+  background: rgba(255, 255, 255, 0.08); 
+  backdrop-filter: blur(20px); 
+  border-radius: 16px; 
+  padding: 20px; 
+  border: 1px solid rgba(255, 255, 255, 0.15); 
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3); 
+  z-index: 50;
+  opacity: 0;
+  transform: scale(0.8);
+  pointer-events: none;
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.card.show{ 
+  opacity: 1;
+  transform: scale(1);
+  pointer-events: all;
+}
+
+.card-top-left{ top: 80px; left: 30px; width: 280px; }
+.card-bottom-left{ bottom: 30px; left: 30px; width: 180px; }
+.card-top-right{ top: 80px; right: 30px; width: 180px; }
+.card-bottom-right{ bottom: 30px; right: 30px; width: 180px; }
+
+.close-btn{ 
+  position: absolute; 
+  top: 10px; 
+  right: 10px; 
+  background: rgba(255, 255, 255, 0.2); 
+  border: none; 
+  color: #fff; 
+  font-size: 24px; 
+  width: 32px; 
+  height: 32px; 
+  border-radius: 50%; 
+  cursor: pointer; 
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.close-btn:hover{ background: rgba(255, 255, 255, 0.3); transform: rotate(90deg); }
+
+.flag-container{ width: 100%; height: 120px; margin-bottom: 16px; display: flex; align-items: center; justify-content: center; border-radius: 8px; overflow: hidden; }
+
+.card h2{ margin: 0; font-size: 24px; font-weight: 600; text-align: center; }
+.card h3{ margin: 0 0 12px 0; font-size: 14px; font-weight: 500; text-transform: uppercase; letter-spacing: 1px; opacity: 0.8; text-align: center; }
+
+.ranking-value{ font-size: 56px; font-weight: 700; text-align: center; line-height: 1; color: #ffd700; text-shadow: 0 2px 8px rgba(255, 215, 0, 0.3); }
+.stat-value{ font-size: 32px; font-weight: 600; text-align: center; line-height: 1.2; }
+
+/* Globe styles */
+.sea{ fill:#141b2d; }
+.graticule{ fill:none; stroke:rgba(255,255,255,0.1); stroke-width:0.5px; }
+.land{ fill:none; stroke:#94a3b8; stroke-width:1px; transition: stroke 0.2s ease; }
+.land.hover{ stroke:#fbbf24; stroke-width:2px; }
+.country-area{ cursor: pointer; }
+
+/* Volleyball pin marker */
+.volleyball-pin{ 
+  filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.8)) drop-shadow(0 2px 4px rgba(0,0,0,0.6));
+  transition: transform 0.2s ease;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.volleyball-pin line,
+.volleyball-pin circle,
+.volleyball-pin path {
+  pointer-events: none;
+}
+
+.volleyball-pin line {
+  stroke: #ffd700;
+  stroke-width: 3.5;
+  opacity: 1;
+}
+
+.volleyball-pin circle {
+  stroke: #ffd700;
+  stroke-width: 2.5;
+  opacity: 1;
+}
+
+.volleyball-pin:hover{ transform: scale(1.1); }
+
+/* Controls */
+.controls{ position: fixed; top: 20px; left: 20px; z-index: 100; }
+#genderToggle{ 
+  background: rgba(255, 255, 255, 0.15); 
+  backdrop-filter: blur(10px); 
+  border: 1px solid rgba(255, 255, 255, 0.2); 
+  color: #fff; 
+  padding: 12px 24px; 
+  border-radius: 8px; 
+  font-size: 16px; 
+  font-weight: 500; 
+  cursor: pointer; 
+  transition: all 0.3s ease;
+}
+
+#genderToggle:hover{ background: rgba(255, 255, 255, 0.25); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2); }
+
+/* Sparkline Chart Styles */
+.sparkline-container {
+  width: 100%;
+  padding: 0;
+}
+
+.sparkline-svg {
+  width: 100%;
+  height: 60px;
+  border-radius: 8px;
+  overflow: visible;
+  display: block;
+}
+
+.sparkline-label {
+  font-family: system-ui, -apple-system, sans-serif;
+  font-weight: 500;
+}
+
+/* Animate sparkline on load */
+.sparkline-svg path:not([fill]) {
+  stroke-dasharray: 500;
+  animation: drawLine 1.2s ease-out forwards;
+}
+
+@keyframes drawLine {
+  from {
+    stroke-dashoffset: 500;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.sparkline-svg circle {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: popIn 0.4s ease-out forwards;
+  animation-delay: 0.9s;
+}
+
+@keyframes popIn {
+  0% {
+    transform: scale(0);
+  }
+  70% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+

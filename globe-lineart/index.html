@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Volleyball World Rankings Globe</title>
+	<link rel="icon" href="https://fonts.gstatic.com/s/e/notoemoji/latest/1f3d0/emoji.svg" type="image/svg+xml">
+	<script src="https://cdn.tailwindcss.com"></script>
+	<script>
+		tailwind.config = {
+			theme: {
+				extend: {
+					colors: {
+						ocean: {
+							DEFAULT: '#1e40af',
+							dark: '#1e3a8a',
+							mid: '#3b82f6',
+							light: '#60a5fa'
+						},
+						volleyball: {
+							yellow: '#fbbf24',
+							orange: '#f59e0b',
+							red: '#ef4444',
+							darkred: '#dc2626'
+						}
+					}
+				}
+			}
+		}
+	</script>
+	<link rel="stylesheet" href="css/style.css">
+</head>
+<body class="women h-screen m-0 p-0 font-sans antialiased transition-colors duration-600 ease-out">
+	<!-- Header Title -->
+	<div class="fixed top-6 left-1/2 transform -translate-x-1/2 z-[100] text-center">
+		<h1 class="text-white text-2xl font-bold tracking-wide">Senior Volleyball World Ranking</h1>
+		<p id="rankingDate" class="text-gray-400 text-sm mt-1">as of January 6, 2026</p>
+	</div>
+	
+	<!-- Gender Toggle - Upper Right -->
+	<div class="fixed top-6 right-8 z-[100] flex gap-2">
+		<button id="btnLeaderboard" class="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-all duration-200 border border-white/20 backdrop-blur-sm">
+			Rankings
+		</button>
+		<button id="btnWomen" class="gender-btn active bg-pink-600 hover:bg-pink-700 text-white px-5 py-2 rounded-lg text-sm font-semibold cursor-pointer transition-all duration-300 shadow-lg">Women</button>
+		<button id="btnMen" class="gender-btn bg-gray-600 hover:bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-semibold cursor-pointer transition-all duration-300 shadow-lg">Men</button>
+	</div>
+	
+	<!-- FIVB Credit - Lower Left -->
+	<div class="fixed bottom-6 left-8 z-[100]">
+		<p class="text-gray-400 text-sm">Created using FIVB Data | Created by Jan Andrew R. Barte</p>
+	</div>
+	
+	<!-- Zoom Controls -->
+	<div class="fixed bottom-8 right-8 z-[100] flex flex-col gap-2">
+		<button id="zoomIn" class="bg-white/90 hover:bg-white border border-gray-300 text-gray-800 w-10 h-10 rounded-lg text-xl font-bold cursor-pointer transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center leading-none pb-0.5">+</button>
+		<button id="zoomOut" class="bg-white/90 hover:bg-white border border-gray-300 text-gray-800 w-10 h-10 rounded-lg text-xl font-bold cursor-pointer transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center leading-none pb-0.5">−</button>
+	</div>
+	
+	<!-- Country Information Card -->
+	<div class="country-card fixed top-[100px] left-6 w-[320px] bg-white rounded-xl shadow-2xl z-50 opacity-0 pointer-events-none transition-all duration-400 ease-out scale-90 overflow-hidden">
+		<button class="close-btn absolute top-2 right-2 bg-gray-100 border-0 text-gray-600 text-base w-6 h-6 rounded-md cursor-pointer transition-all duration-200 flex items-center justify-center leading-none z-10 hover:bg-gray-200 hover:text-gray-800" aria-label="Close">&times;</button>
+		
+		<!-- Header with flag and name -->
+		<div class="card-header flex items-center gap-3 p-4 border-b border-gray-100">
+			<img class="country-flag w-12 h-8 object-cover shadow-sm border border-gray-200 shrink-0" alt="">
+			<div class="min-w-0">
+				<h2 class="country-name m-0 text-base font-semibold text-gray-800 leading-tight truncate"></h2>
+				<p class="federation-name text-xs text-gray-500 mt-0.5 font-medium leading-tight"></p>
+			</div>
+		</div>
+		
+		<!-- Ranking stats -->
+		<div class="card-body p-4"></div>
+	</div>
+	
+	<!-- Leaderboard Modal -->
+	<div id="leaderboardModal" class="fixed inset-0 bg-black/50 z-[200] opacity-0 pointer-events-none transition-opacity duration-200 flex items-center justify-center">
+		<div class="bg-gray-900 rounded-xl shadow-2xl w-[400px] max-h-[70vh] overflow-hidden border border-gray-700/50">
+			<div class="flex items-center justify-between px-5 py-4 border-b border-gray-700/50">
+				<h2 id="leaderboardTitle" class="text-base font-semibold text-white">World Rankings</h2>
+				<button id="closeLeaderboard" class="text-gray-400 hover:text-white text-xl leading-none w-6 h-6 flex items-center justify-center rounded hover:bg-gray-700/50 transition-colors">&times;</button>
+			</div>
+			<div class="px-5 py-3 border-b border-gray-700/50">
+				<input type="text" id="leaderboardSearch" placeholder="Search country..." class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-gray-500 transition-colors">
+			</div>
+			<div id="leaderboardContent" class="overflow-y-auto max-h-[calc(70vh-110px)]">
+				<div class="text-center text-gray-500 py-8 text-sm">Loading...</div>
+			</div>
+		</div>
+	</div>
+
+	
+	<!-- Globe Container -->
+	<div id="globe" class="w-full h-screen flex items-center justify-center relative overflow-hidden"></div>
+
+	<!-- Dependencies -->
+	<script src="https://d3js.org/d3.v7.min.js"></script>
+	<script src="https://unpkg.com/topojson-client@3/dist/topojson-client.min.js"></script>
+	
+	<!-- Application Scripts -->
+	<script src="config/api.js"></script>
+	<script src="config/constants.js"></script>
+	<script src="js/ranking-fetcher.js"></script>
+	<script src="js/data-loader.js"></script>
+	<script src="js/globe-renderer.js"></script>
+	<script src="js/app.js"></script>
+</body>
+</html>
+

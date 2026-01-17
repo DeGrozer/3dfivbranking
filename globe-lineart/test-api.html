@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>FIVB API Test</title>
+	<script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-8">
+	<div class="max-w-4xl mx-auto">
+		<h1 class="text-3xl font-bold mb-6">FIVB Ranking API Test</h1>
+		
+		<div class="bg-white rounded-lg shadow p-6 mb-6">
+			<h2 class="text-xl font-semibold mb-4">Test Controls</h2>
+			<div class="flex gap-4 mb-4">
+				<button onclick="testWomen()" class="bg-pink-600 hover:bg-pink-700 text-white px-6 py-2 rounded">Test Women's Rankings</button>
+				<button onclick="testMen()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded">Test Men's Rankings</button>
+			</div>
+			<button onclick="testSpecific()" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded">Search: Brazil</button>
+		</div>
+		
+		<div class="bg-white rounded-lg shadow p-6">
+			<h2 class="text-xl font-semibold mb-4">Results</h2>
+			<pre id="output" class="bg-gray-50 p-4 rounded overflow-auto max-h-96 text-sm"></pre>
+		</div>
+	</div>
+	
+	<script src="js/ranking-fetcher.js"></script>
+	<script>
+		const output = document.getElementById('output');
+		
+		async function testWomen() {
+			output.textContent = 'Loading women\'s rankings...';
+			try {
+				const rankings = await RankingFetcher.fetchCurrentRankings('women');
+				output.textContent = `Found ${rankings.length} women's teams:\n\n` + 
+					rankings.slice(0, 20).map(r => 
+						`#${r.rank} ${r.federationName} - ${r.points.toFixed(2)} points (${r.gamesPlayed} games)`
+					).join('\n') +
+					`\n\n... and ${rankings.length - 20} more teams`;
+			} catch (error) {
+				output.textContent = `ERROR: ${error.message}`;
+			}
+		}
+		
+		async function testMen() {
+			output.textContent = 'Loading men\'s rankings...';
+			try {
+				const rankings = await RankingFetcher.fetchCurrentRankings('men');
+				output.textContent = `Found ${rankings.length} men's teams:\n\n` + 
+					rankings.slice(0, 20).map(r => 
+						`#${r.rank} ${r.federationName} - ${r.points.toFixed(2)} points (${r.gamesPlayed} games)`
+					).join('\n') +
+					`\n\n... and ${rankings.length - 20} more teams`;
+			} catch (error) {
+				output.textContent = `ERROR: ${error.message}`;
+			}
+		}
+		
+		async function testSpecific() {
+			output.textContent = 'Searching for Brazil...';
+			try {
+				const ranking = await RankingFetcher.getCountryRanking('Brazil', 'men');
+				if (ranking) {
+					output.textContent = `🏐 Brazil Men's Ranking:\n\n` +
+						`Rank: #${ranking.rank}\n` +
+						`Points: ${ranking.points.toFixed(2)}\n` +
+						`Participation Points: ${ranking.participationPoints}\n` +
+						`Games Played: ${ranking.gamesPlayed}\n` +
+						`ISO3 Code: ${ranking.iso3}\n` +
+						`Last Updated: ${ranking.updatedDate}`;
+				} else {
+					output.textContent = 'Brazil not found in rankings';
+				}
+			} catch (error) {
+				output.textContent = `ERROR: ${error.message}`;
+			}
+		}
+	</script>
+</body>
+</html>
