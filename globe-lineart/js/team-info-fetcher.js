@@ -5,9 +5,23 @@
 const TeamInfoFetcher = (function() {
 	
 	const FIVB_API_BASE = 'https://en.volleyballworld.com/api/v1';
+	const FIVB_PLAYERS_API = 'https://www.fivb.com/vis2009/XmlRequest.asmx';
 	
 	// Cache for team data
 	let teamCache = {};
+	
+	// Banned/inactive teams
+	const bannedTeams = {
+		'RUS': { name: 'Russia', bannedYear: 2022, reason: 'Suspended from international competition' },
+		'BLR': { name: 'Belarus', bannedYear: 2022, reason: 'Suspended from international competition' }
+	};
+	
+	/**
+	 * Check if team is banned/inactive
+	 */
+	function isBannedTeam(teamCode) {
+		return bannedTeams[teamCode] || null;
+	}
 	
 	/**
 	 * Fetch team roster from FIVB API
@@ -23,7 +37,7 @@ const TeamInfoFetcher = (function() {
 		}
 		
 		try {
-			// FIVB API endpoint for team details
+			// Try the volleyballworld API first
 			const genderCode = gender === 'women' ? 0 : 1;
 			const apiUrl = `${FIVB_API_BASE}/team/volleyball/${genderCode}/${teamCode}`;
 			
@@ -74,9 +88,7 @@ const TeamInfoFetcher = (function() {
 		return {
 			teamName: ranking.federationName,
 			teamCode: ranking.federationCode || '',
-			confederation: ranking.confederationName || '',
-			rank: ranking.rank,
-			points: ranking.points
+			confederation: ranking.confederationName || ''
 		};
 	}
 	
@@ -151,6 +163,7 @@ const TeamInfoFetcher = (function() {
 		fetchTeamRoster,
 		getTeamInfoFromRanking,
 		fetchTeamWikiInfo,
+		isBannedTeam,
 		clearCache
 	};
 })();

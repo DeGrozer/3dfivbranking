@@ -745,12 +745,15 @@
 		panel.classList.add('show');
 		content.innerHTML = '<div class="loading-spinner">Loading team info...</div>';
 		
-		// Get team code from ranking
-		const teamCode = ranking?.federationCode || '';
+		// Get team code from ranking or country mapping
+		const teamCode = ranking?.federationCode || getTeamCodeFromCountry(countryName);
 		
-		// Fetch roster from FIVB
+		// Check if team is banned/inactive
+		const bannedInfo = TeamInfoFetcher.isBannedTeam(teamCode);
+		
+		// Fetch roster from FIVB (only for active teams)
 		let roster = null;
-		if (teamCode) {
+		if (teamCode && !bannedInfo) {
 			roster = await TeamInfoFetcher.fetchTeamRoster(teamCode, currentGender);
 		}
 		
@@ -759,6 +762,21 @@
 		
 		// Build content
 		let html = '';
+		
+		// Banned/inactive status
+		if (bannedInfo) {
+			html += `
+				<div class="team-info-section" style="background: #fef2f2; border-bottom: 1px solid #fecaca;">
+					<div class="section-title" style="color: #991b1b;">Inactive Team</div>
+					<p class="wiki-summary" style="color: #7f1d1d;">
+						${bannedInfo.reason}
+					</p>
+					<p class="wiki-summary" style="color: #991b1b; margin-top: 4px; font-size: 12px;">
+						Since ${bannedInfo.bannedYear}
+					</p>
+				</div>
+			`;
+		}
 		
 		// Wiki summary section
 		if (wikiInfo && wikiInfo.summary) {
@@ -804,32 +822,14 @@
 					</div>
 				</div>
 			`;
-		} else {
-			// No roster data - show basic info
+		} else if (!bannedInfo) {
+			// No roster data - show link to FIVB
+			const genderText = currentGender === 'women' ? 'Women' : 'Men';
 			html += `
 				<div class="team-info-section">
 					<div class="section-title">Team Roster</div>
-					<p class="wiki-summary">Roster data not available from FIVB API.</p>
-					<p class="wiki-summary" style="margin-top: 8px;">Visit the official FIVB website for current squad information.</p>
-				</div>
-			`;
-		}
-		
-		// Ranking info section
-		if (ranking) {
-			html += `
-				<div class="team-info-section">
-					<div class="section-title">Current Standing</div>
-					<div style="display: flex; gap: 16px;">
-						<div style="text-align: center; padding: 8px 16px; background: #f3f4f6; border-radius: 8px; flex: 1;">
-							<div style="font-size: 20px; font-weight: 700; color: #1f2937;">#${ranking.rank}</div>
-							<div style="font-size: 11px; color: #6b7280; text-transform: uppercase;">World Rank</div>
-						</div>
-						<div style="text-align: center; padding: 8px 16px; background: #f3f4f6; border-radius: 8px; flex: 1;">
-							<div style="font-size: 20px; font-weight: 700; color: #1f2937;">${ranking.points.toFixed(1)}</div>
-							<div style="font-size: 11px; color: #6b7280; text-transform: uppercase;">Points</div>
-						</div>
-					</div>
+					<p class="wiki-summary">Roster data not available.</p>
+					<a href="https://www.fivb.com/players/players-database/sport/volleyball" target="_blank" class="wiki-link">View on FIVB Players Database</a>
 				</div>
 			`;
 		}
@@ -840,6 +840,37 @@
 		}
 		
 		content.innerHTML = html;
+	}
+	
+	/**
+	 * Get team code from country name
+	 */
+	function getTeamCodeFromCountry(countryName) {
+		const nameToCode = {
+			'russia': 'RUS',
+			'russian federation': 'RUS',
+			'belarus': 'BLR',
+			'united states': 'USA',
+			'brazil': 'BRA',
+			'china': 'CHN',
+			'italy': 'ITA',
+			'japan': 'JPN',
+			'poland': 'POL',
+			'serbia': 'SRB',
+			'turkey': 'TUR',
+			'germany': 'DEU',
+			'france': 'FRA',
+			'netherlands': 'NLD',
+			'argentina': 'ARG',
+			'canada': 'CAN',
+			'south korea': 'KOR',
+			'korea': 'KOR',
+			'cuba': 'CUB',
+			'thailand': 'THA',
+			'dominican republic': 'DOM',
+			'puerto rico': 'PUR'
+		};
+		return nameToCode[countryName.toLowerCase()] || '';
 	}
 	
 	/**
