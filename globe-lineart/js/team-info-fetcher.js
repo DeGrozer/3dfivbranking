@@ -1,11 +1,8 @@
 /**
  * Team Info Fetcher Module
- * Fetches team roster and info from FIVB API
+ * Fetches team roster from FIVB VNL pages
  */
 const TeamInfoFetcher = (function() {
-	
-	const FIVB_API_BASE = 'https://en.volleyballworld.com/api/v1';
-	const FIVB_PLAYERS_API = 'https://www.fivb.com/vis2009/XmlRequest.asmx';
 	
 	// Cache for team data
 	let teamCache = {};
@@ -16,6 +13,54 @@ const TeamInfoFetcher = (function() {
 		'BLR': { name: 'Belarus', bannedYear: 2022, reason: 'Suspended from international competition' }
 	};
 	
+	// VNL 2025 Team IDs from FIVB
+	const vnlTeamIds = {
+		// Men's teams
+		'men': {
+			'Argentina': 7518,
+			'Brazil': 7519,
+			'Bulgaria': 7520,
+			'Canada': 7521,
+			'China': 7522,
+			'Cuba': 7523,
+			'France': 7524,
+			'Germany': 7525,
+			'Iran': 7526,
+			'Italy': 7527,
+			'Japan': 7528,
+			'Netherlands': 7529,
+			'Poland': 7530,
+			'Serbia': 7531,
+			'Slovenia': 7532,
+			'Turkey': 7533,
+			'Türkiye': 7533,
+			'USA': 7534,
+			'United States': 7534
+		},
+		// Women's teams
+		'women': {
+			'Brazil': 7535,
+			'Bulgaria': 7536,
+			'Canada': 7537,
+			'China': 7538,
+			'Dominican Republic': 7539,
+			'France': 7540,
+			'Germany': 7541,
+			'Italy': 7542,
+			'Japan': 7543,
+			'South Korea': 7544,
+			'Korea': 7544,
+			'Netherlands': 7545,
+			'Poland': 7546,
+			'Serbia': 7547,
+			'Thailand': 7548,
+			'Turkey': 7549,
+			'Türkiye': 7549,
+			'USA': 7550,
+			'United States': 7550
+		}
+	};
+	
 	/**
 	 * Check if team is banned/inactive
 	 */
@@ -24,57 +69,86 @@ const TeamInfoFetcher = (function() {
 	}
 	
 	/**
-	 * Fetch team roster from FIVB API
-	 * @param {string} teamCode - 3-letter team code (e.g., 'USA', 'BRA')
+	 * Fetch team roster from FIVB VNL page
+	 * @param {string} countryName - Country name
 	 * @param {string} gender - 'men' or 'women'
 	 * @returns {Promise<Object>} Team roster data
 	 */
-	async function fetchTeamRoster(teamCode, gender) {
-		const cacheKey = `${teamCode}_${gender}`;
+	async function fetchTeamRoster(countryName, gender) {
+		const cacheKey = `${countryName}_${gender}`;
 		
 		if (teamCache[cacheKey]) {
 			return teamCache[cacheKey];
 		}
 		
+		const teamId = vnlTeamIds[gender]?.[countryName];
+		if (!teamId) {
+			console.warn('Team not found in VNL:', countryName, gender);
+			return null;
+		}
+		
 		try {
-			// Try the volleyballworld API first
-			const genderCode = gender === 'women' ? 0 : 1;
-			const apiUrl = `${FIVB_API_BASE}/team/volleyball/${genderCode}/${teamCode}`;
+			// Fetch team players page from VNL
+			const url = `https://en.volleyballworld.com/volleyball/competitions/volleyball-nations-league/teams/${gender}/${teamId}/players/`;
 			
-			const response = await fetch(apiUrl);
+			// Use a CORS proxy or direct fetch (may need proxy in production)
+			const response = await fetch(url);
 			
 			if (!response.ok) {
 				throw new Error(`HTTP ${response.status}`);
 			}
 			
-			const data = await response.json();
+			const html = await response.text();
+			const roster = parseVnlRoster(html, countryName);
 			
-			// Transform roster data
-			const roster = {
-				teamName: data.teamName || data.federationName || teamCode,
-				teamCode: teamCode,
-				coach: data.headCoach || null,
-				players: []
-			};
-			
-			if (data.players && Array.isArray(data.players)) {
-				roster.players = data.players.map(player => ({
-					name: player.name || `${player.firstName || ''} ${player.lastName || ''}`.trim(),
-					number: player.shirtNumber || player.jerseyNumber || '-',
-					position: normalizePosition(player.position || player.role),
-					height: player.height ? `${player.height} cm` : null,
-					birthYear: player.birthDate ? new Date(player.birthDate).getFullYear() : null,
-					club: player.club || null
-				}));
+			if (roster && roster.players.length > 0) {
+				teamCache[cacheKey] = roster;
 			}
 			
-			teamCache[cacheKey] = roster;
 			return roster;
 			
 		} catch (error) {
-			console.warn('FIVB roster API failed:', error.message);
+			console.warn('FIVB VNL roster fetch failed:', error.message);
 			return null;
 		}
+	}
+	
+	/**
+	 * Parse roster from VNL HTML page
+	 * Format: | Number | Name | Position |
+	 */
+	function parseVnlRoster(html, countryName) {
+		const roster = {
+			teamName: countryName,
+			coach: null,
+			players: []
+		};
+		
+		// Create a DOM parser
+		const parser = new DOMParser();
+		const doc = parser.parseFromString(html, 'text/html');
+		
+		// Find the player table rows
+		const rows = doc.querySelectorAll('table tr, tbody tr');
+		
+		for (const row of rows) {
+			const cells = row.querySelectorAll('td');
+			if (cells.length >= 3) {
+				const number = cells[0]?.textContent?.trim();
+				const name = cells[1]?.textContent?.trim();
+				const position = cells[2]?.textContent?.trim();
+				
+				if (number && name && position && /^\d+$/.test(number)) {
+					roster.players.push({
+						number: number,
+						name: name,
+						position: normalizePosition(position)
+					});
+				}
+			}
+		}
+		
+		return roster;
 	}
 	
 	/**
@@ -138,18 +212,68 @@ const TeamInfoFetcher = (function() {
 	
 	/**
 	 * Normalize position names
+	 * FIVB uses: S (Setter), OH (Outside Hitter), MB (Middle Blocker), O (Opposite), L (Libero)
 	 */
 	function normalizePosition(pos) {
 		if (!pos) return '-';
-		const p = pos.toLowerCase();
+		const p = pos.toUpperCase().trim();
 		
-		if (p.includes('setter')) return 'S';
-		if (p.includes('opposite') || p.includes('opp')) return 'OPP';
-		if (p.includes('outside') || p.includes('oh')) return 'OH';
-		if (p.includes('middle') || p.includes('mb')) return 'MB';
-		if (p.includes('libero') || p.includes('lib')) return 'L';
+		// Direct FIVB codes
+		if (p === 'S') return 'S';
+		if (p === 'O') return 'OPP';  // FIVB uses O for Opposite
+		if (p === 'OH') return 'OH';
+		if (p === 'MB') return 'MB';
+		if (p === 'L') return 'L';
 		
-		return pos.substring(0, 3).toUpperCase();
+		// Full names
+		const pl = p.toLowerCase();
+		if (pl.includes('setter')) return 'S';
+		if (pl.includes('opposite') || pl.includes('opp')) return 'OPP';
+		if (pl.includes('outside')) return 'OH';
+		if (pl.includes('middle')) return 'MB';
+		if (pl.includes('libero')) return 'L';
+		
+		return p.substring(0, 3);
+	}
+	
+	/**
+	 * Get position display info with icon
+	 */
+	function getPositionInfo(posCode) {
+		const positions = {
+			'S': { name: 'Setter', icon: 'S', color: '#3b82f6' },
+			'OPP': { name: 'Opposite', icon: 'O', color: '#ec4899' },
+			'OH': { name: 'Outside Hitter', icon: 'OH', color: '#22c55e' },
+			'MB': { name: 'Middle Blocker', icon: 'MB', color: '#eab308' },
+			'L': { name: 'Libero', icon: 'L', color: '#a855f7' }
+		};
+		return positions[posCode] || { name: posCode, icon: posCode, color: '#6b7280' };
+	}
+	
+	/**
+	 * Group players by position
+	 */
+	function groupPlayersByPosition(players) {
+		const positionOrder = ['S', 'OPP', 'OH', 'MB', 'L'];
+		const grouped = {};
+		
+		// Initialize groups
+		positionOrder.forEach(pos => {
+			grouped[pos] = [];
+		});
+		grouped['Other'] = [];
+		
+		// Group players
+		players.forEach(player => {
+			const pos = player.position;
+			if (positionOrder.includes(pos)) {
+				grouped[pos].push(player);
+			} else {
+				grouped['Other'].push(player);
+			}
+		});
+		
+		return grouped;
 	}
 	
 	/**
@@ -164,6 +288,8 @@ const TeamInfoFetcher = (function() {
 		getTeamInfoFromRanking,
 		fetchTeamWikiInfo,
 		isBannedTeam,
+		getPositionInfo,
+		groupPlayersByPosition,
 		clearCache
 	};
 })();

@@ -751,10 +751,10 @@
 		// Check if team is banned/inactive
 		const bannedInfo = TeamInfoFetcher.isBannedTeam(teamCode);
 		
-		// Fetch roster from FIVB (only for active teams)
+		// Fetch roster from Wikipedia (only for active teams)
 		let roster = null;
-		if (teamCode && !bannedInfo) {
-			roster = await TeamInfoFetcher.fetchTeamRoster(teamCode, currentGender);
+		if (!bannedInfo) {
+			roster = await TeamInfoFetcher.fetchTeamRoster(countryName, currentGender);
 		}
 		
 		// Fetch Wikipedia info
@@ -801,18 +801,36 @@
 			`;
 		}
 		
-		// Players section
+		// Players section - grouped by position
 		if (roster && roster.players && roster.players.length > 0) {
-			const playersHtml = roster.players.slice(0, 14).map(player => {
-				const posClass = getPositionClass(player.position);
-				return `
-					<div class="player-item">
-						<span class="player-number">#${player.number}</span>
-						<span class="player-name">${player.name}</span>
-						<span class="player-position ${posClass}">${player.position}</span>
+			const groupedPlayers = TeamInfoFetcher.groupPlayersByPosition(roster.players);
+			const positionOrder = ['S', 'OPP', 'OH', 'MB', 'L', 'Other'];
+			
+			let playersHtml = '';
+			
+			positionOrder.forEach(posCode => {
+				const players = groupedPlayers[posCode];
+				if (!players || players.length === 0) return;
+				
+				const posInfo = TeamInfoFetcher.getPositionInfo(posCode);
+				
+				playersHtml += `
+					<div class="position-group">
+						<div class="position-header">
+							<span class="position-icon" style="background-color: ${posInfo.color};">${posInfo.icon}</span>
+							<span class="position-name">${posInfo.name}</span>
+						</div>
+						<div class="position-players">
+							${players.map(player => `
+								<div class="player-item">
+									<span class="player-number">#${player.number}</span>
+									<span class="player-name">${player.name}</span>
+								</div>
+							`).join('')}
+						</div>
 					</div>
 				`;
-			}).join('');
+			});
 			
 			html += `
 				<div class="team-info-section">
@@ -823,13 +841,12 @@
 				</div>
 			`;
 		} else if (!bannedInfo) {
-			// No roster data - show link to FIVB
-			const genderText = currentGender === 'women' ? 'Women' : 'Men';
+			// No roster data - show link to FIVB VNL teams
 			html += `
 				<div class="team-info-section">
 					<div class="section-title">Team Roster</div>
-					<p class="wiki-summary">Roster data not available.</p>
-					<a href="https://www.fivb.com/players/players-database/sport/volleyball" target="_blank" class="wiki-link">View on FIVB Players Database</a>
+					<p class="wiki-summary">This team is not in VNL 2025.</p>
+					<a href="https://en.volleyballworld.com/volleyball/competitions/volleyball-nations-league/teams/${currentGender}/" target="_blank" class="wiki-link">View all VNL teams on FIVB</a>
 				</div>
 			`;
 		}
