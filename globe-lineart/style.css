@@ -165,3 +165,214 @@ svg{ width:min(960px,95vw); height: min(640px,85vh); background:transparent; }
   }
 }
 
+/* Team Info Card - Right Side */
+.card-right {
+  top: 80px;
+  right: 30px;
+  width: 320px;
+  max-height: calc(100vh - 120px);
+  overflow-y: auto;
+}
+
+.team-info-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.team-info-header h2 {
+  margin: 0;
+  font-size: 20px;
+  text-align: left;
+}
+
+.team-info-header .header-flag {
+  width: 48px;
+  height: 32px;
+  object-fit: cover;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+.team-info-section {
+  margin-bottom: 16px;
+}
+
+.team-info-section h4 {
+  margin: 0 0 8px 0;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #ffd700;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.team-info-section h4::before {
+  content: '';
+  width: 3px;
+  height: 14px;
+  background: #ffd700;
+  border-radius: 2px;
+}
+
+/* History preview */
+.history-text {
+  font-size: 13px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.85);
+  margin: 0;
+}
+
+/* Achievements grid */
+.achievements-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.achievement-item {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.achievement-label {
+  display: block;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 4px;
+}
+
+.achievement-value {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.95);
+  line-height: 1.3;
+}
+
+/* Roster table */
+.roster-list {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.roster-header {
+  display: grid;
+  grid-template-columns: 32px 1fr 40px 45px;
+  gap: 4px;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.1);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.roster-player {
+  display: grid;
+  grid-template-columns: 32px 1fr 40px 45px;
+  gap: 4px;
+  padding: 6px 10px;
+  font-size: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.roster-player:last-child {
+  border-bottom: none;
+}
+
+.roster-player:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.roster-num {
+  font-weight: 600;
+  color: #ffd700;
+}
+
+.roster-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.roster-pos {
+  text-align: center;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.roster-height {
+  text-align: right;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* Wiki link */
+.wiki-link {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.wiki-link a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #60a5fa;
+  text-decoration: none;
+  font-size: 12px;
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+
+.wiki-link a:hover {
+  color: #93c5fd;
+  text-decoration: underline;
+}
+
+/* No info message */
+.no-info {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.5);
+  text-align: center;
+  padding: 20px;
+}
+
+/* Loading state */
+.team-info-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 40px 20px;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 13px;
+}
+
+.team-info-loading::before {
+  content: '';
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-top-color: #ffd700;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+

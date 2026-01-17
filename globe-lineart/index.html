@@ -74,6 +74,21 @@
 		<div class="card-body p-4"></div>
 	</div>
 	
+	<!-- Team Info Panel - Right Side -->
+	<div id="teamInfoPanel" class="team-info-panel fixed top-[100px] right-6 w-[320px] bg-white/95 backdrop-blur-sm rounded-xl shadow-2xl z-50 opacity-0 pointer-events-none transition-all duration-300 ease-out overflow-hidden border border-gray-200">
+		<button class="close-btn-team absolute top-2 right-2 bg-gray-100 border-0 text-gray-600 text-base w-6 h-6 rounded-md cursor-pointer transition-all duration-200 flex items-center justify-center leading-none z-10 hover:bg-gray-200 hover:text-gray-800" aria-label="Close">&times;</button>
+		
+		<!-- Panel Header -->
+		<div class="panel-header px-4 py-3 border-b border-gray-100 bg-gray-50">
+			<h3 class="text-sm font-semibold text-gray-800 uppercase tracking-wide">Team Info</h3>
+		</div>
+		
+		<!-- Panel Content -->
+		<div id="teamInfoContent" class="panel-content max-h-[60vh] overflow-y-auto">
+			<div class="text-center text-gray-400 py-8 text-sm">Select a country to view team info</div>
+		</div>
+	</div>
+
 	<!-- Leaderboard Modal -->
 	<div id="leaderboardModal" class="fixed inset-0 bg-black/50 z-[200] opacity-0 pointer-events-none transition-opacity duration-200 flex items-center justify-center">
 		<div class="bg-gray-900 rounded-xl shadow-2xl w-[400px] max-h-[70vh] overflow-hidden border border-gray-700/50">
@@ -102,6 +117,7 @@
 	<script src="config/api.js"></script>
 	<script src="config/constants.js"></script>
 	<script src="js/ranking-fetcher.js"></script>
+	<script src="js/team-info-fetcher.js"></script>
 	<script src="js/data-loader.js"></script>
 	<script src="js/globe-renderer.js"></script>
 	<script src="js/app.js"></script>

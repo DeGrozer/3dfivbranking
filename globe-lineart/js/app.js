@@ -282,6 +282,7 @@
 		
 		// Close any open card
 		hideCountryCard();
+		hideTeamInfoPanel();
 		GlobeRenderer.clearSelection();
 	}
 	
@@ -308,7 +309,16 @@
 		if (closeBtn) {
 			closeBtn.addEventListener('click', () => {
 				hideCountryCard();
+				hideTeamInfoPanel();
 				GlobeRenderer.clearSelection();
+			});
+		}
+		
+		// Team info panel close button
+		const closeBtnTeam = document.querySelector('.close-btn-team');
+		if (closeBtnTeam) {
+			closeBtnTeam.addEventListener('click', () => {
+				hideTeamInfoPanel();
 			});
 		}
 	}
@@ -495,6 +505,9 @@
 		
 		// Show card with ranking data
 		showCountryCard(countryName, countryId, ranking);
+		
+		// Show team info panel
+		showTeamInfoPanel(countryName, countryId, ranking);
 	}
 	
 	/**
@@ -717,6 +730,148 @@
 				</div>
 			</div>
 		`;
+	}
+
+	/**
+	 * Show team info panel on the right
+	 */
+	async function showTeamInfoPanel(countryName, countryId, ranking) {
+		const panel = document.getElementById('teamInfoPanel');
+		const content = document.getElementById('teamInfoContent');
+		
+		if (!panel || !content) return;
+		
+		// Show panel with loading state
+		panel.classList.add('show');
+		content.innerHTML = '<div class="loading-spinner">Loading team info...</div>';
+		
+		// Get team code from ranking
+		const teamCode = ranking?.federationCode || '';
+		
+		// Fetch roster from FIVB
+		let roster = null;
+		if (teamCode) {
+			roster = await TeamInfoFetcher.fetchTeamRoster(teamCode, currentGender);
+		}
+		
+		// Fetch Wikipedia info
+		const wikiInfo = await TeamInfoFetcher.fetchTeamWikiInfo(countryName, currentGender);
+		
+		// Build content
+		let html = '';
+		
+		// Wiki summary section
+		if (wikiInfo && wikiInfo.summary) {
+			html += `
+				<div class="team-info-section">
+					<div class="section-title">About</div>
+					<p class="wiki-summary">${truncateText(wikiInfo.summary, 200)}</p>
+					<a href="${wikiInfo.wikiUrl}" target="_blank" class="wiki-link">Read more</a>
+				</div>
+			`;
+		}
+		
+		// Coach section
+		if (roster && roster.coach) {
+			html += `
+				<div class="team-info-section">
+					<div class="section-title">Head Coach</div>
+					<div class="coach-info">
+						<span class="coach-name">${roster.coach}</span>
+					</div>
+				</div>
+			`;
+		}
+		
+		// Players section
+		if (roster && roster.players && roster.players.length > 0) {
+			const playersHtml = roster.players.slice(0, 14).map(player => {
+				const posClass = getPositionClass(player.position);
+				return `
+					<div class="player-item">
+						<span class="player-number">#${player.number}</span>
+						<span class="player-name">${player.name}</span>
+						<span class="player-position ${posClass}">${player.position}</span>
+					</div>
+				`;
+			}).join('');
+			
+			html += `
+				<div class="team-info-section">
+					<div class="section-title">Current Roster</div>
+					<div class="player-list">
+						${playersHtml}
+					</div>
+				</div>
+			`;
+		} else {
+			// No roster data - show basic info
+			html += `
+				<div class="team-info-section">
+					<div class="section-title">Team Roster</div>
+					<p class="wiki-summary">Roster data not available from FIVB API.</p>
+					<p class="wiki-summary" style="margin-top: 8px;">Visit the official FIVB website for current squad information.</p>
+				</div>
+			`;
+		}
+		
+		// Ranking info section
+		if (ranking) {
+			html += `
+				<div class="team-info-section">
+					<div class="section-title">Current Standing</div>
+					<div style="display: flex; gap: 16px;">
+						<div style="text-align: center; padding: 8px 16px; background: #f3f4f6; border-radius: 8px; flex: 1;">
+							<div style="font-size: 20px; font-weight: 700; color: #1f2937;">#${ranking.rank}</div>
+							<div style="font-size: 11px; color: #6b7280; text-transform: uppercase;">World Rank</div>
+						</div>
+						<div style="text-align: center; padding: 8px 16px; background: #f3f4f6; border-radius: 8px; flex: 1;">
+							<div style="font-size: 20px; font-weight: 700; color: #1f2937;">${ranking.points.toFixed(1)}</div>
+							<div style="font-size: 11px; color: #6b7280; text-transform: uppercase;">Points</div>
+						</div>
+					</div>
+				</div>
+			`;
+		}
+		
+		// If no data at all
+		if (!html) {
+			html = '<div class="team-info-section"><p class="wiki-summary">No team information available for this country.</p></div>';
+		}
+		
+		content.innerHTML = html;
+	}
+	
+	/**
+	 * Hide team info panel
+	 */
+	function hideTeamInfoPanel() {
+		const panel = document.getElementById('teamInfoPanel');
+		if (panel) {
+			panel.classList.remove('show');
+		}
+	}
+	
+	/**
+	 * Get CSS class for player position
+	 */
+	function getPositionClass(pos) {
+		if (!pos) return '';
+		const p = pos.toLowerCase();
+		if (p === 's' || p.includes('setter')) return 'setter';
+		if (p === 'opp' || p.includes('opposite')) return 'opposite';
+		if (p === 'oh' || p.includes('outside')) return 'outside';
+		if (p === 'mb' || p.includes('middle')) return 'middle';
+		if (p === 'l' || p.includes('libero')) return 'libero';
+		return '';
+	}
+	
+	/**
+	 * Truncate text to specified length
+	 */
+	function truncateText(text, maxLength) {
+		if (!text || text.length <= maxLength) return text;
+		return text.substring(0, maxLength).trim() + '...';
 	}
 
 	/**

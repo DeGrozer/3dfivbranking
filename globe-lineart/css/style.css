@@ -485,3 +485,166 @@ svg {
 	border-color: white;
 	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
 }
+
+/* Team Info Panel - Right Side */
+.team-info-panel {
+	background: rgba(255, 255, 255, 0.95);
+	backdrop-filter: blur(12px);
+}
+
+.team-info-panel.show {
+	opacity: 1 !important;
+	pointer-events: all !important;
+}
+
+.close-btn-team {
+	background: #f3f4f6;
+	border: none;
+	color: #6b7280;
+	font-size: 16px;
+	width: 24px;
+	height: 24px;
+	border-radius: 6px;
+	cursor: pointer;
+	transition: all 0.2s ease;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	line-height: 1;
+	z-index: 10;
+}
+
+.close-btn-team:hover {
+	background: #e5e7eb;
+	color: #374151;
+}
+
+.panel-content {
+	padding: 0;
+}
+
+/* Team Info Section */
+.team-info-section {
+	padding: 12px 16px;
+	border-bottom: 1px solid #e5e7eb;
+}
+
+.team-info-section:last-child {
+	border-bottom: none;
+}
+
+.section-title {
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+	color: #6b7280;
+	margin-bottom: 8px;
+}
+
+/* Player List */
+.player-list {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.player-item {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 10px;
+	background: #f9fafb;
+	border-radius: 6px;
+	font-size: 13px;
+}
+
+.player-number {
+	font-weight: 700;
+	color: #374151;
+	min-width: 24px;
+	text-align: center;
+}
+
+.player-name {
+	flex: 1;
+	color: #1f2937;
+	font-weight: 500;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.player-position {
+	font-size: 11px;
+	font-weight: 600;
+	padding: 2px 6px;
+	border-radius: 4px;
+	background: #e5e7eb;
+	color: #4b5563;
+}
+
+.player-position.setter { background: #dbeafe; color: #1e40af; }
+.player-position.opposite { background: #fce7f3; color: #9d174d; }
+.player-position.outside { background: #d1fae5; color: #065f46; }
+.player-position.middle { background: #fef3c7; color: #92400e; }
+.player-position.libero { background: #ede9fe; color: #5b21b6; }
+
+/* Coach Info */
+.coach-info {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 8px 12px;
+	background: #f3f4f6;
+	border-radius: 8px;
+}
+
+.coach-label {
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+	color: #6b7280;
+}
+
+.coach-name {
+	font-size: 14px;
+	font-weight: 600;
+	color: #1f2937;
+}
+
+/* Wiki Summary */
+.wiki-summary {
+	font-size: 13px;
+	line-height: 1.5;
+	color: #4b5563;
+}
+
+.wiki-link {
+	display: inline-block;
+	margin-top: 8px;
+	font-size: 12px;
+	color: #3b82f6;
+	text-decoration: none;
+}
+
+.wiki-link:hover {
+	text-decoration: underline;
+}
+
+/* Loading state */
+.loading-spinner {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 24px;
+	color: #9ca3af;
+	font-size: 13px;
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+	.team-info-panel {
+		display: none;
+	}
+}
