@@ -29,8 +29,21 @@ const GlobeRenderer = (function() {
 	let selectedCentroid = null;  // Geographic center point of selected country
 	let lastTime = Date.now();    // Last animation frame timestamp
 	let currentScale = GLOBE_CONSTANTS.scale;  // Current zoom scale level
-	const minScale = 200;         // Minimum zoom scale
-	const maxScale = 500;         // Maximum zoom scale
+	let isDraggingGlobe = false;
+	let minScale = 200;           // Minimum zoom scale
+	let maxScale = 500;           // Maximum zoom scale
+	let zoomStep = 30;
+
+	function updateZoomBounds() {
+		const isMobile = window.matchMedia('(max-width: 768px)').matches;
+		minScale = isMobile ? 150 : 200;
+		maxScale = isMobile ? 900 : 500;
+		zoomStep = isMobile ? 55 : 30;
+		currentScale = Math.max(minScale, Math.min(maxScale, currentScale));
+		if (projection) {
+			projection.scale(currentScale);
+		}
+	}
 	
 	/**
 	 * Initialize the globe renderer
@@ -39,6 +52,7 @@ const GlobeRenderer = (function() {
 	function init(countriesData) {
 		countries = countriesData;
 		console.log('Initializing globe with', countries.length, 'countries');
+		updateZoomBounds();
 		
 		createSvgCanvas();
 		createOceanGradient();
@@ -177,6 +191,12 @@ const GlobeRenderer = (function() {
 				tooltip.style('display', 'none');
 			})
 			.on('click', (e, d) => {
+				if (isDraggingGlobe) return;
+				handleCountryClick(d);
+			})
+			.on('touchend', (e, d) => {
+				if (isDraggingGlobe) return;
+				if (e.cancelable) e.preventDefault();
 				handleCountryClick(d);
 			});
 	}
@@ -345,19 +365,40 @@ const GlobeRenderer = (function() {
 	 * Setup drag and zoom
 	 */
 	function setupInteractions() {
-		svg.call(d3.drag().on('drag', (event) => {
-			const deltaX = event.dx;
-			const deltaY = event.dy;
-			rotation.lambda += deltaX * GLOBE_CONSTANTS.dragSensitivity;
-			rotation.phi += -deltaY * GLOBE_CONSTANTS.dragSensitivity;
-			rotation.phi = Math.max(-90, Math.min(90, rotation.phi));
-			projection.rotate([rotation.lambda, rotation.phi]);
-			render();
-		}));
+		svg.style('touch-action', 'none');
+
+		svg.call(
+			d3.drag()
+				.on('start', (event) => {
+					isDraggingGlobe = false;
+					autoRotate = false;
+				})
+				.on('drag', (event) => {
+					isDraggingGlobe = true;
+					const deltaX = event.dx;
+					const deltaY = event.dy;
+					rotation.lambda += deltaX * GLOBE_CONSTANTS.dragSensitivity;
+					rotation.phi += -deltaY * GLOBE_CONSTANTS.dragSensitivity;
+					rotation.phi = Math.max(-90, Math.min(90, rotation.phi));
+					projection.rotate([rotation.lambda, rotation.phi]);
+					render();
+				})
+				.on('end', () => {
+					// Reset in next tick so click/touchend handlers can read drag state.
+					setTimeout(() => {
+						isDraggingGlobe = false;
+					}, 0);
+				})
+		);
 
 		svg.on('mousedown touchstart', () => autoRotate = false);
 		svg.on('mouseup touchend mouseleave', () => {
 			if (!selectedCountry) autoRotate = true;
+		});
+
+		window.addEventListener('resize', () => {
+			updateZoomBounds();
+			render();
 		});
 	}
 	
@@ -365,7 +406,7 @@ const GlobeRenderer = (function() {
 	 * Zoom in
 	 */
 	function zoomIn() {
-		currentScale = Math.min(maxScale, currentScale + 30);
+		currentScale = Math.min(maxScale, currentScale + zoomStep);
 		projection.scale(currentScale);
 		render();
 	}
@@ -374,7 +415,7 @@ const GlobeRenderer = (function() {
 	 * Zoom out
 	 */
 	function zoomOut() {
-		currentScale = Math.max(minScale, currentScale - 30);
+		currentScale = Math.max(minScale, currentScale - zoomStep);
 		projection.scale(currentScale);
 		render();
 	}

@@ -10,6 +10,33 @@
 	let currentGender = 'women';  // Current gender mode (women or men)
 	let rankingsData = null;       // Cached rankings for current gender
 	let worldMapData = null;       // GeoJSON world map data
+
+	function isMobileViewport() {
+		return window.matchMedia('(max-width: 768px)').matches;
+	}
+
+	function applyMobileCountryLayout(isOpen) {
+		document.body.classList.toggle('mobile-country-open', isMobileViewport() && isOpen);
+	}
+
+	function setupMobileTitleToggle() {
+		const titleWrap = document.getElementById('titleWrap');
+		if (!titleWrap) return;
+
+		titleWrap.addEventListener('click', () => {
+			if (!isMobileViewport()) return;
+			titleWrap.classList.toggle('collapsed');
+		});
+
+		window.addEventListener('resize', () => {
+			if (!isMobileViewport()) {
+				titleWrap.classList.remove('collapsed');
+			}
+			if (!document.querySelector('.country-card')?.classList.contains('show')) {
+				applyMobileCountryLayout(false);
+			}
+		});
+	}
 	
 	// ============================================================================
 	// Medals Reference Data
@@ -166,6 +193,8 @@
 			setupCardClose();
 			setupSparklineHover();
 			setupLeaderboard();
+			setupInfoModal();
+			setupMobileTitleToggle();
 			
 			// Setup country selection callback
 			window.onCountrySelected = handleCountrySelection;
@@ -176,6 +205,45 @@
 			console.error('Initialization error:', error);
 			showError('Failed to load application. Please refresh the page.');
 		}
+	}
+
+	/**
+	 * Setup info modal
+	 */
+	function setupInfoModal() {
+		const btnInfo = document.getElementById('btnInfo');
+		const infoModal = document.getElementById('infoModal');
+		const closeInfo = document.getElementById('closeInfo');
+
+		if (btnInfo) {
+			btnInfo.addEventListener('click', () => {
+				if (!infoModal) return;
+				infoModal.classList.remove('opacity-0', 'pointer-events-none');
+				if (isMobileViewport()) {
+					document.body.classList.add('mobile-info-open');
+				}
+			});
+		}
+
+		if (closeInfo) {
+			closeInfo.addEventListener('click', hideInfoModal);
+		}
+
+		if (infoModal) {
+			infoModal.addEventListener('click', (e) => {
+				if (e.target === infoModal) {
+					hideInfoModal();
+				}
+			});
+		}
+	}
+
+	function hideInfoModal() {
+		const infoModal = document.getElementById('infoModal');
+		if (infoModal) {
+			infoModal.classList.add('opacity-0', 'pointer-events-none');
+		}
+		document.body.classList.remove('mobile-info-open');
 	}
 	
 	/**
@@ -282,7 +350,6 @@
 		
 		// Close any open card
 		hideCountryCard();
-		hideTeamInfoPanel();
 		GlobeRenderer.clearSelection();
 	}
 	
@@ -309,16 +376,7 @@
 		if (closeBtn) {
 			closeBtn.addEventListener('click', () => {
 				hideCountryCard();
-				hideTeamInfoPanel();
 				GlobeRenderer.clearSelection();
-			});
-		}
-		
-		// Team info panel close button
-		const closeBtnTeam = document.querySelector('.close-btn-team');
-		if (closeBtnTeam) {
-			closeBtnTeam.addEventListener('click', () => {
-				hideTeamInfoPanel();
 			});
 		}
 	}
@@ -371,7 +429,7 @@
 		items.forEach(item => {
 			const country = item.getAttribute('data-country')?.toLowerCase() || '';
 			if (term === '' || country.includes(term)) {
-				item.style.display = 'flex';
+				item.style.display = '';
 			} else {
 				item.style.display = 'none';
 			}
@@ -401,6 +459,9 @@
 		
 		// Show modal
 		modal.classList.remove('opacity-0', 'pointer-events-none');
+		if (isMobileViewport()) {
+			document.body.classList.add('mobile-leaderboard-open');
+		}
 		
 		// Show loading state
 		content.innerHTML = '<div class="text-center text-gray-500 py-8 text-sm">Loading...</div>';
@@ -414,34 +475,36 @@
 				return;
 			}
 			
-			// Generate leaderboard HTML - clean dark theme
-			const html = rankings.map((team, index) => {
+			// Generate leaderboard HTML - cleaner table-like presentation
+			const rowsHtml = rankings.map((team, index) => {
 				const rank = team.rank || index + 1;
 				const flagUrl = `https://flagcdn.com/w40/${(team.teamCode || '').toLowerCase()}.png`;
 				const points = team.wrs?.toFixed(2) || '—';
-				
-				// Subtle highlight for top 3
-				let rowBg = 'hover:bg-gray-800/50';
-				let rankColor = 'text-gray-500';
-				if (rank === 1) {
-					rankColor = 'text-amber-400';
-				} else if (rank === 2) {
-					rankColor = 'text-gray-300';
-				} else if (rank === 3) {
-					rankColor = 'text-amber-600';
-				}
+				let rankClass = '';
+				if (rank === 1) rankClass = 'top1';
+				else if (rank === 2) rankClass = 'top2';
+				else if (rank === 3) rankClass = 'top3';
 				
 				return `
-					<div class="flex items-center gap-3 px-5 py-3 ${rowBg} cursor-pointer leaderboard-item border-b border-gray-800/50 last:border-0" data-country="${team.teamName || ''}">
-						<span class="w-6 text-right text-sm font-medium ${rankColor}">${rank}</span>
-						<img src="${flagUrl}" alt="" class="w-7 h-5 object-cover shrink-0" onerror="this.style.visibility='hidden'">
-						<span class="flex-1 text-sm text-gray-200 truncate">${team.teamName || 'Unknown'}</span>
-						<span class="text-sm text-gray-400 tabular-nums">${points}</span>
+					<div class="leaderboard-row leaderboard-item" data-country="${team.teamName || ''}">
+						<div><span class="rank-pill ${rankClass}">${rank}</span></div>
+						<div class="team-cell">
+							<img src="${flagUrl}" alt="" class="team-flag" onerror="this.style.visibility='hidden'">
+							<span class="team-name">${team.teamName || 'Unknown'}</span>
+						</div>
+						<div class="team-points">${points}</div>
 					</div>
 				`;
 			}).join('');
-			
-			content.innerHTML = html;
+
+			content.innerHTML = `
+				<div class="leaderboard-table-head">
+					<span>Rank</span>
+					<span>Team</span>
+					<span style="text-align:right;">Points</span>
+				</div>
+				${rowsHtml}
+			`;
 			
 			// Add click handlers to navigate to country
 			content.querySelectorAll('.leaderboard-item').forEach(item => {
@@ -469,6 +532,7 @@
 		if (modal) {
 			modal.classList.add('opacity-0', 'pointer-events-none');
 		}
+		document.body.classList.remove('mobile-leaderboard-open');
 	}
 	
 	/**
@@ -504,10 +568,12 @@
 		}
 		
 		// Show card with ranking data
-		showCountryCard(countryName, countryId, ranking);
-		
-		// Show team info panel
-		showTeamInfoPanel(countryName, countryId, ranking);
+		try {
+			showCountryCard(countryName, countryId, ranking);
+		} catch (error) {
+			console.error('Failed to render country card:', error);
+			showCountryCard(countryName, countryId, null);
+		}
 	}
 	
 	/**
@@ -517,8 +583,11 @@
 		const card = document.querySelector('.country-card');
 		if (!card) return;
 		
-		const iso2Code = DataLoader.getIso2Code(countryId);
-		const flagUrl = `${API_CONFIG.flags.primary}${iso2Code.toLowerCase()}.png`;
+		const iso2CodeRaw = DataLoader.getIso2Code(countryId);
+		const iso2Code = (typeof iso2CodeRaw === 'string' && iso2CodeRaw.length === 2)
+			? iso2CodeRaw.toLowerCase()
+			: 'un';
+		const flagUrl = `${API_CONFIG.flags.primary}${iso2Code}.png`;
 		
 		// Update flag
 		const flagImg = card.querySelector('.country-flag');
@@ -545,6 +614,8 @@
 		
 		let bodyHtml = '<p class="text-gray-500 text-sm">No ranking data available</p>';
 		if (ranking) {
+			const safeRank = Number.isFinite(ranking.rank) ? ranking.rank : '—';
+			const safePoints = Number.isFinite(ranking.points) ? ranking.points.toFixed(2) : '—';
 			const matchHistoryHtml = generateMatchHistory(ranking.pointsProgression);
 			const sparklineHtml = generateSparkline(ranking.pointsProgression);
 			
@@ -552,11 +623,11 @@
 				<div class="flex items-center justify-between mb-3">
 					<div>
 						<p class="text-xs text-gray-400 uppercase">World Rank</p>
-						<p class="text-2xl font-bold text-gray-900">#${ranking.rank}</p>
+						<p class="text-2xl font-bold text-gray-900">#${safeRank}</p>
 					</div>
 					<div class="text-right">
 						<p class="text-xs text-gray-400 uppercase">Points</p>
-						<p class="text-xl font-semibold text-gray-700">${ranking.points.toFixed(2)}</p>
+						<p class="text-xl font-semibold text-gray-700">${safePoints}</p>
 					</div>
 				</div>
 				${matchHistoryHtml}
@@ -568,6 +639,7 @@
 		
 		// Show card
 		card.classList.add('show');
+		applyMobileCountryLayout(true);
 	}
 	
 	/**
@@ -587,9 +659,9 @@
 		const range = maxPts - minPts || 1;
 		
 		// Fixed dimensions for the sparkline
-		const width = 260;
-		const height = 50;
-		const padding = 6;
+		const width = 300;
+		const height = 60;
+		const padding = 8;
 		
 		// Calculate path coordinates
 		const chartWidth = width - padding * 2;
@@ -639,8 +711,8 @@
 					<span class="text-xs text-gray-600 font-medium">Points Trend</span>
 					<span class="sparkline-value text-xs font-bold" style="color: ${lineColor}">${changeText} pts</span>
 				</div>
-				<div class="p-2 bg-white rounded-b-lg" style="height: 60px;">
-					<svg width="${width}" height="${height}" style="display: block; max-width: 100%;" class="sparkline-chart">
+				<div class="p-2 bg-white rounded-b-lg" style="height: 76px;">
+					<svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" style="display:block; width:100%; height:100%;" class="sparkline-chart">
 						<path d="${areaPath}" fill="${areaColor}" />
 						<path d="${linePath}" fill="none" stroke="${lineColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 						<circle cx="${lastDot.x.toFixed(1)}" cy="${lastDot.y.toFixed(1)}" r="3" fill="${lineColor}"/>
@@ -705,18 +777,18 @@
 			const [setsWon, setsLost] = score.split('-');
 			
 			return `
-				<div class="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
-					<div class="flex items-center gap-2 flex-1 min-w-0">
-						<span class="text-xs text-gray-400">vs</span>
-						<span class="text-sm text-gray-800 font-medium truncate">${opponent}</span>
+				<div class="grid grid-cols-[1fr_auto] items-center gap-2 py-2 border-b border-gray-100 last:border-0">
+					<div class="flex items-center gap-2 min-w-0">
+						<span class="text-[11px] uppercase tracking-wide text-gray-400">vs</span>
+						<span class="text-sm text-gray-800 font-semibold truncate">${opponent}</span>
 					</div>
 					<div class="flex items-center gap-2 shrink-0">
-						<div class="text-center">
+						<div class="text-center min-w-[38px]">
 							<span class="text-sm font-bold text-gray-800">${setsWon || '-'}</span>
 							<span class="text-xs text-gray-400 mx-0.5">:</span>
 							<span class="text-sm font-bold text-gray-500">${setsLost || '-'}</span>
 						</div>
-						<span class="text-xs font-bold w-6 h-6 rounded flex items-center justify-center ${resultBg}">${resultText}</span>
+						<span class="text-xs font-bold w-6 h-6 rounded-md flex items-center justify-center ${resultBg}">${resultText}</span>
 					</div>
 				</div>
 			`;
@@ -733,196 +805,6 @@
 	}
 
 	/**
-	 * Show team info panel on the right
-	 */
-	async function showTeamInfoPanel(countryName, countryId, ranking) {
-		const panel = document.getElementById('teamInfoPanel');
-		const content = document.getElementById('teamInfoContent');
-		
-		if (!panel || !content) return;
-		
-		// Show panel with loading state
-		panel.classList.add('show');
-		content.innerHTML = '<div class="loading-spinner">Loading team info...</div>';
-		
-		// Get team code from ranking or country mapping
-		const teamCode = ranking?.federationCode || getTeamCodeFromCountry(countryName);
-		
-		// Check if team is banned/inactive
-		const bannedInfo = TeamInfoFetcher.isBannedTeam(teamCode);
-		
-		// Fetch roster from Wikipedia (only for active teams)
-		let roster = null;
-		if (!bannedInfo) {
-			roster = await TeamInfoFetcher.fetchTeamRoster(countryName, currentGender);
-		}
-		
-		// Fetch Wikipedia info
-		const wikiInfo = await TeamInfoFetcher.fetchTeamWikiInfo(countryName, currentGender);
-		
-		// Build content
-		let html = '';
-		
-		// Banned/inactive status
-		if (bannedInfo) {
-			html += `
-				<div class="team-info-section" style="background: #fef2f2; border-bottom: 1px solid #fecaca;">
-					<div class="section-title" style="color: #991b1b;">Inactive Team</div>
-					<p class="wiki-summary" style="color: #7f1d1d;">
-						${bannedInfo.reason}
-					</p>
-					<p class="wiki-summary" style="color: #991b1b; margin-top: 4px; font-size: 12px;">
-						Since ${bannedInfo.bannedYear}
-					</p>
-				</div>
-			`;
-		}
-		
-		// Wiki summary section
-		if (wikiInfo && wikiInfo.summary) {
-			html += `
-				<div class="team-info-section">
-					<div class="section-title">About</div>
-					<p class="wiki-summary">${truncateText(wikiInfo.summary, 200)}</p>
-					<a href="${wikiInfo.wikiUrl}" target="_blank" class="wiki-link">Read more</a>
-				</div>
-			`;
-		}
-		
-		// Coach section
-		if (roster && roster.coach) {
-			html += `
-				<div class="team-info-section">
-					<div class="section-title">Head Coach</div>
-					<div class="coach-info">
-						<span class="coach-name">${roster.coach}</span>
-					</div>
-				</div>
-			`;
-		}
-		
-		// Players section - grouped by position
-		if (roster && roster.players && roster.players.length > 0) {
-			const groupedPlayers = TeamInfoFetcher.groupPlayersByPosition(roster.players);
-			const positionOrder = ['S', 'OPP', 'OH', 'MB', 'L', 'Other'];
-			
-			let playersHtml = '';
-			
-			positionOrder.forEach(posCode => {
-				const players = groupedPlayers[posCode];
-				if (!players || players.length === 0) return;
-				
-				const posInfo = TeamInfoFetcher.getPositionInfo(posCode);
-				
-				playersHtml += `
-					<div class="position-group">
-						<div class="position-header">
-							<span class="position-icon" style="background-color: ${posInfo.color};">${posInfo.icon}</span>
-							<span class="position-name">${posInfo.name}</span>
-						</div>
-						<div class="position-players">
-							${players.map(player => `
-								<div class="player-item">
-									<span class="player-number">#${player.number}</span>
-									<span class="player-name">${player.name}</span>
-								</div>
-							`).join('')}
-						</div>
-					</div>
-				`;
-			});
-			
-			html += `
-				<div class="team-info-section">
-					<div class="section-title">Current Roster</div>
-					<div class="player-list">
-						${playersHtml}
-					</div>
-				</div>
-			`;
-		} else if (!bannedInfo) {
-			// No roster data - show link to FIVB VNL teams
-			html += `
-				<div class="team-info-section">
-					<div class="section-title">Team Roster</div>
-					<p class="wiki-summary">This team is not in VNL 2025.</p>
-					<a href="https://en.volleyballworld.com/volleyball/competitions/volleyball-nations-league/teams/${currentGender}/" target="_blank" class="wiki-link">View all VNL teams on FIVB</a>
-				</div>
-			`;
-		}
-		
-		// If no data at all
-		if (!html) {
-			html = '<div class="team-info-section"><p class="wiki-summary">No team information available for this country.</p></div>';
-		}
-		
-		content.innerHTML = html;
-	}
-	
-	/**
-	 * Get team code from country name
-	 */
-	function getTeamCodeFromCountry(countryName) {
-		const nameToCode = {
-			'russia': 'RUS',
-			'russian federation': 'RUS',
-			'belarus': 'BLR',
-			'united states': 'USA',
-			'brazil': 'BRA',
-			'china': 'CHN',
-			'italy': 'ITA',
-			'japan': 'JPN',
-			'poland': 'POL',
-			'serbia': 'SRB',
-			'turkey': 'TUR',
-			'germany': 'DEU',
-			'france': 'FRA',
-			'netherlands': 'NLD',
-			'argentina': 'ARG',
-			'canada': 'CAN',
-			'south korea': 'KOR',
-			'korea': 'KOR',
-			'cuba': 'CUB',
-			'thailand': 'THA',
-			'dominican republic': 'DOM',
-			'puerto rico': 'PUR'
-		};
-		return nameToCode[countryName.toLowerCase()] || '';
-	}
-	
-	/**
-	 * Hide team info panel
-	 */
-	function hideTeamInfoPanel() {
-		const panel = document.getElementById('teamInfoPanel');
-		if (panel) {
-			panel.classList.remove('show');
-		}
-	}
-	
-	/**
-	 * Get CSS class for player position
-	 */
-	function getPositionClass(pos) {
-		if (!pos) return '';
-		const p = pos.toLowerCase();
-		if (p === 's' || p.includes('setter')) return 'setter';
-		if (p === 'opp' || p.includes('opposite')) return 'opposite';
-		if (p === 'oh' || p.includes('outside')) return 'outside';
-		if (p === 'mb' || p.includes('middle')) return 'middle';
-		if (p === 'l' || p.includes('libero')) return 'libero';
-		return '';
-	}
-	
-	/**
-	 * Truncate text to specified length
-	 */
-	function truncateText(text, maxLength) {
-		if (!text || text.length <= maxLength) return text;
-		return text.substring(0, maxLength).trim() + '...';
-	}
-
-	/**
 	 * Hide country card
 	 */
 	function hideCountryCard() {
@@ -930,6 +812,7 @@
 		if (card) {
 			card.classList.remove('show');
 		}
+		applyMobileCountryLayout(false);
 	}
 
 	/**

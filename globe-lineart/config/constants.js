@@ -5,7 +5,7 @@
 const GLOBE_CONSTANTS = {
 	width: 960,                      // SVG canvas width in pixels
 	height: 640,                     // SVG canvas height in pixels
-	scale: 280,                      // Initial projection scale
+	scale: 320,                      // Initial projection scale
 	clipAngle: 90,                   // Orthographic projection clip angle
 	initialPhi: -10,                 // Initial latitude rotation
 	rotationSpeed: 0.02,             // Auto-rotation speed (degrees per frame)

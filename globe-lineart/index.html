@@ -28,33 +28,36 @@
 			}
 		}
 	</script>
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 	<link rel="stylesheet" href="css/style.css">
 </head>
-<body class="women h-screen m-0 p-0 font-sans antialiased transition-colors duration-600 ease-out">
+<body class="women min-h-screen m-0 p-0 font-sans antialiased transition-colors duration-600 ease-out">
 	<!-- Header Title -->
-	<div class="fixed top-6 left-1/2 transform -translate-x-1/2 z-[100] text-center">
-		<h1 class="text-white text-2xl font-bold tracking-wide">Senior Volleyball World Ranking</h1>
-		<p id="rankingDate" class="text-gray-400 text-sm mt-1">as of January 6, 2026</p>
+	<div id="titleWrap" class="fixed top-3 sm:top-6 left-1/2 transform -translate-x-1/2 z-[100] text-center w-[calc(100vw-2rem)] sm:w-auto cursor-pointer sm:cursor-default select-none">
+		<h1 class="text-white text-lg sm:text-2xl font-bold tracking-wide leading-tight">Senior Volleyball World Ranking</h1>
+		<p id="rankingDate" class="text-gray-400 text-xs sm:text-sm mt-1">as of January 6, 2026</p>
 	</div>
 	
 	<!-- Gender Toggle - Upper Right -->
-	<div class="fixed top-6 right-8 z-[100] flex gap-2">
-		<button id="btnLeaderboard" class="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-all duration-200 border border-white/20 backdrop-blur-sm">
+	<div id="controlsWrap" class="fixed top-[74px] sm:top-6 left-1/2 sm:left-auto sm:right-8 transform -translate-x-1/2 sm:translate-x-0 z-[100] flex gap-2 w-[calc(100vw-1.5rem)] sm:w-auto justify-center">
+		<button id="btnLeaderboard" class="bg-slate-700/50 hover:bg-slate-600/70 text-white px-4 py-2 rounded-xl text-sm font-semibold cursor-pointer transition-all duration-200 border border-white/15 backdrop-blur-sm">
 			Rankings
 		</button>
-		<button id="btnWomen" class="gender-btn active bg-pink-600 hover:bg-pink-700 text-white px-5 py-2 rounded-lg text-sm font-semibold cursor-pointer transition-all duration-300 shadow-lg">Women</button>
-		<button id="btnMen" class="gender-btn bg-gray-600 hover:bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-semibold cursor-pointer transition-all duration-300 shadow-lg">Men</button>
+		<button id="btnWomen" class="gender-btn active bg-pink-600 hover:bg-pink-700 text-white px-4 sm:px-5 py-2 rounded-lg text-xs sm:text-sm font-semibold cursor-pointer transition-all duration-300 shadow-lg whitespace-nowrap">Women</button>
+		<button id="btnMen" class="gender-btn bg-gray-600 hover:bg-blue-600 text-white px-4 sm:px-5 py-2 rounded-lg text-xs sm:text-sm font-semibold cursor-pointer transition-all duration-300 shadow-lg whitespace-nowrap">Men</button>
 	</div>
-	
-	<!-- FIVB Credit - Lower Left -->
-	<div class="fixed bottom-6 left-8 z-[100]">
-		<p class="text-gray-400 text-sm">Created using FIVB Data | Created by Jan Andrew R. Barte</p>
+
+	<!-- Info Button - Lower Left -->
+	<div id="infoButtonWrap" class="fixed bottom-4 sm:bottom-8 left-3 sm:left-8 z-[100]">
+		<button id="btnInfo" class="info-fab" aria-label="Project info" title="Project info">
+			<i class="fa-solid fa-circle-info" aria-hidden="true"></i>
+		</button>
 	</div>
 	
 	<!-- Zoom Controls -->
-	<div class="fixed bottom-8 right-8 z-[100] flex flex-col gap-2">
-		<button id="zoomIn" class="bg-white/90 hover:bg-white border border-gray-300 text-gray-800 w-10 h-10 rounded-lg text-xl font-bold cursor-pointer transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center leading-none pb-0.5">+</button>
-		<button id="zoomOut" class="bg-white/90 hover:bg-white border border-gray-300 text-gray-800 w-10 h-10 rounded-lg text-xl font-bold cursor-pointer transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center leading-none pb-0.5">−</button>
+	<div id="zoomControlsWrap" class="fixed bottom-4 sm:bottom-8 right-3 sm:right-8 z-[100] flex flex-col gap-2">
+		<button id="zoomIn" class="zoom-btn" aria-label="Zoom in">+</button>
+		<button id="zoomOut" class="zoom-btn" aria-label="Zoom out">−</button>
 	</div>
 	
 	<!-- Country Information Card -->
@@ -63,7 +66,7 @@
 		
 		<!-- Header with flag and name -->
 		<div class="card-header flex items-center gap-3 p-4 border-b border-gray-100">
-			<img class="country-flag w-12 h-8 object-cover shadow-sm border border-gray-200 shrink-0" alt="">
+			<img class="country-flag w-12 h-8 object-cover shrink-0" alt="">
 			<div class="min-w-0">
 				<h2 class="country-name m-0 text-base font-semibold text-gray-800 leading-tight truncate"></h2>
 				<p class="federation-name text-xs text-gray-500 mt-0.5 font-medium leading-tight"></p>
@@ -74,33 +77,38 @@
 		<div class="card-body p-4"></div>
 	</div>
 	
-	<!-- Team Info Panel - Right Side -->
-	<div id="teamInfoPanel" class="team-info-panel fixed top-[100px] right-6 w-[320px] bg-white/95 backdrop-blur-sm rounded-xl shadow-2xl z-50 opacity-0 pointer-events-none transition-all duration-300 ease-out overflow-hidden border border-gray-200">
-		<button class="close-btn-team absolute top-2 right-2 bg-gray-100 border-0 text-gray-600 text-base w-6 h-6 rounded-md cursor-pointer transition-all duration-200 flex items-center justify-center leading-none z-10 hover:bg-gray-200 hover:text-gray-800" aria-label="Close">&times;</button>
-		
-		<!-- Panel Header -->
-		<div class="panel-header px-4 py-3 border-b border-gray-100 bg-gray-50">
-			<h3 class="text-sm font-semibold text-gray-800 uppercase tracking-wide">Team Info</h3>
-		</div>
-		
-		<!-- Panel Content -->
-		<div id="teamInfoContent" class="panel-content max-h-[60vh] overflow-y-auto">
-			<div class="text-center text-gray-400 py-8 text-sm">Select a country to view team info</div>
+	<!-- Leaderboard Modal -->
+	<div id="leaderboardModal" class="fixed inset-0 bg-black/60 z-[200] opacity-0 pointer-events-none transition-opacity duration-200 flex items-center justify-center p-1 sm:p-0">
+		<div class="leaderboard-shell bg-gray-900 rounded-md shadow-2xl w-[calc(100vw-0.5rem)] sm:w-[460px] max-h-[90vh] sm:max-h-[78vh] overflow-hidden border border-slate-700/60">
+			<div class="leaderboard-head flex items-center justify-between px-5 py-4 border-b border-slate-700/50">
+				<h2 id="leaderboardTitle" class="text-base font-semibold text-white tracking-tight">World Rankings</h2>
+				<button id="closeLeaderboard" class="text-slate-300 hover:text-white text-xl leading-none w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-700/60 transition-colors">&times;</button>
+			</div>
+			<div class="px-5 py-3 border-b border-slate-700/50 bg-slate-900/60">
+				<input type="text" id="leaderboardSearch" placeholder="Search country..." class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white placeholder-slate-400 focus:outline-none focus:border-slate-500 transition-colors">
+			</div>
+			<div id="leaderboardContent" class="leaderboard-content overflow-y-auto max-h-[calc(80vh-136px)] sm:max-h-[calc(75vh-116px)]">
+				<div class="text-center text-gray-500 py-8 text-sm">Loading...</div>
+			</div>
 		</div>
 	</div>
 
-	<!-- Leaderboard Modal -->
-	<div id="leaderboardModal" class="fixed inset-0 bg-black/50 z-[200] opacity-0 pointer-events-none transition-opacity duration-200 flex items-center justify-center">
-		<div class="bg-gray-900 rounded-xl shadow-2xl w-[400px] max-h-[70vh] overflow-hidden border border-gray-700/50">
-			<div class="flex items-center justify-between px-5 py-4 border-b border-gray-700/50">
-				<h2 id="leaderboardTitle" class="text-base font-semibold text-white">World Rankings</h2>
-				<button id="closeLeaderboard" class="text-gray-400 hover:text-white text-xl leading-none w-6 h-6 flex items-center justify-center rounded hover:bg-gray-700/50 transition-colors">&times;</button>
+	<!-- Info Modal -->
+	<div id="infoModal" class="fixed inset-0 bg-black/60 z-[210] opacity-0 pointer-events-none transition-opacity duration-200 flex items-center justify-center p-4">
+		<div class="info-shell w-[calc(100vw-1.5rem)] sm:w-[420px] bg-white text-slate-900 rounded-lg shadow-2xl border border-slate-200 overflow-hidden">
+			<div class="flex items-center justify-between px-5 py-4 border-b border-slate-200">
+				<h3 class="text-base font-semibold tracking-tight flex items-center gap-2">
+					<i class="fa-solid fa-circle-info text-slate-600" aria-hidden="true"></i>
+					<span>Project Info</span>
+				</h3>
+				<button id="closeInfo" class="text-slate-500 hover:text-slate-800 text-base leading-none w-7 h-7 flex items-center justify-center rounded-md hover:bg-slate-100 transition-colors" aria-label="Close info modal">
+					<i class="fa-solid fa-xmark" aria-hidden="true"></i>
+				</button>
 			</div>
-			<div class="px-5 py-3 border-b border-gray-700/50">
-				<input type="text" id="leaderboardSearch" placeholder="Search country..." class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-gray-500 transition-colors">
-			</div>
-			<div id="leaderboardContent" class="overflow-y-auto max-h-[calc(70vh-110px)]">
-				<div class="text-center text-gray-500 py-8 text-sm">Loading...</div>
+			<div class="px-5 py-4 text-sm leading-relaxed info-modal-body">
+				<p class="info-line"><i class="fa-solid fa-database" aria-hidden="true"></i><span>Created using FIVB Data</span></p>
+				<p class="info-line"><i class="fa-solid fa-user" aria-hidden="true"></i><span><strong>Created by:</strong> Jan Andrew R. Barte</span></p>
+				<p class="info-line"><i class="fa-brands fa-github" aria-hidden="true"></i><span><strong>GitHub:</strong> <a href="https://github.com/DeGrozer" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-700 underline">github.com/DeGrozer</a></span></p>
 			</div>
 		</div>
 	</div>
@@ -117,7 +125,6 @@
 	<script src="config/api.js"></script>
 	<script src="config/constants.js"></script>
 	<script src="js/ranking-fetcher.js"></script>
-	<script src="js/team-info-fetcher.js"></script>
 	<script src="js/data-loader.js"></script>
 	<script src="js/globe-renderer.js"></script>
 	<script src="js/app.js"></script>
