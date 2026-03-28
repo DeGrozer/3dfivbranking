@@ -1,0 +1,167 @@
+/**
+ * Information card styles
+ * Glassmorphism design with staggered animations
+ */
+
+/* Base card styles */
+.card {
+  position: fixed;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 16px;
+  padding: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  z-index: 50;
+  opacity: 0;
+  transform: scale(0.8);
+  pointer-events: none;
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.card.show {
+  opacity: 1;
+  transform: scale(1);
+  pointer-events: all;
+}
+
+/* Card positioning */
+.card-top-left {
+  top: 80px;
+  left: 30px;
+  width: 280px;
+}
+
+.card-bottom-left {
+  bottom: 30px;
+  left: 30px;
+  width: 180px;
+}
+
+.card-top-right {
+  top: 80px;
+  right: 30px;
+  width: 180px;
+}
+
+.card-bottom-right {
+  bottom: 30px;
+  right: 30px;
+  width: 180px;
+}
+
+/* Close button */
+.close-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: #fff;
+  font-size: 24px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.close-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: rotate(90deg);
+}
+
+.close-btn:active {
+  transform: rotate(90deg) scale(0.9);
+}
+
+/* Flag container */
+.flag-container {
+  width: 100%;
+  height: 120px;
+  margin-bottom: 16px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.flag-container img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transition: transform 0.3s ease;
+}
+
+.flag-container img:hover {
+  transform: scale(1.05);
+}
+
+/* Country name */
+#countryName {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: #ffd700;
+  text-align: center;
+  text-shadow: 0 2px 8px rgba(255, 215, 0, 0.3);
+}
+
+/* Card headings */
+.card h3 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.7);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* Stat values */
+.ranking-value,
+.stat-value {
+  font-size: 36px;
+  font-weight: 700;
+  color: #ffd700;
+  text-align: center;
+  text-shadow: 0 2px 8px rgba(255, 215, 0, 0.3);
+  line-height: 1;
+}
+
+/* Responsive card layout */
+@media (max-width: 768px) {
+  .card {
+    width: auto !important;
+    max-width: calc(100vw - 40px);
+  }
+
+  .card-top-left,
+  .card-bottom-left {
+    left: 20px;
+  }
+
+  .card-top-right,
+  .card-bottom-right {
+    right: 20px;
+  }
+
+  .flag-container {
+    height: 80px;
+  }
+
+  #countryName {
+    font-size: 20px;
+  }
+
+  .ranking-value,
+  .stat-value {
+    font-size: 28px;
+  }
+}

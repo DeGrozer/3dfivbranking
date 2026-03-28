@@ -1,0 +1,105 @@
+/**
+ * Main application styles
+ * Base layout, typography, and theme colors
+ */
+
+/* Reset and base styles */
+html,
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background: #1a1f2e;
+  color: #fff;
+  font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.5s ease;
+}
+
+/* Theme-specific background colors */
+body.men {
+  background: #2c3e7a;
+}
+
+body.women {
+  background: #7a3e3b;
+}
+
+/* Main container */
+#globe {
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+/* SVG responsive sizing */
+svg {
+  width: min(960px, 95vw);
+  height: min(640px, 85vh);
+  background: transparent;
+}
+
+/* Enhanced tooltip */
+.tooltip {
+  position: fixed;
+  pointer-events: none;
+  background: rgba(0, 0, 0, 0.9);
+  color: #fff;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.7);
+  border: 1px solid rgba(0, 255, 255, 0.25);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.tooltip.show {
+  opacity: 1;
+}
+
+/* Controls section */
+.controls {
+  position: fixed;
+  top: 20px;
+  left: 30px;
+  z-index: 100;
+}
+
+/* Gender toggle button */
+#genderToggle {
+  padding: 12px 24px;
+  background: rgba(255, 255, 255, 0.15);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 8px;
+  backdrop-filter: blur(10px);
+  transition: all 0.3s ease;
+  text-transform: capitalize;
+}
+
+#genderToggle:hover {
+  background: rgba(255, 255, 255, 0.25);
+  transform: scale(1.05);
+}
+
+#genderToggle:active {
+  transform: scale(0.98);
+}
+
+/* Accessibility focus styles */
+button:focus-visible {
+  outline: 2px solid #ffd700;
+  outline-offset: 2px;
+}
