@@ -1213,9 +1213,7 @@
 	 * Initialize application
 	 */
 	async function init() {
-		const loadStart = performance.now();
 		try {
-			showLoading(true);
 			window.getVnlBadgeInfo = getVnlCountryInfo;
 			window.isTournamentVnlModeEnabled = () => activeTournamentType === 'vnl';
 			window.isCountryInActiveTournament = isCountryInActiveTournament;
@@ -1242,21 +1240,12 @@
 			// Setup country selection callback
 			window.onCountrySelected = handleCountrySelection;
 			void refreshVnlTeamsFromApi(currentGender);
-
-			const minLoaderMs = 1150;
-			const elapsed = performance.now() - loadStart;
-			if (elapsed < minLoaderMs) {
-				await new Promise(resolve => setTimeout(resolve, minLoaderMs - elapsed));
-			}
-			
-			showLoading(false);
 			if (shouldAutoShowReleaseNotes()) {
 				setTimeout(showReleaseNotesModal, 760);
 			}
 			
 		} catch (error) {
 			console.error('Initialization error:', error);
-			showLoading(false);
 			showError('Failed to load application. Please refresh the page.');
 		}
 	}
