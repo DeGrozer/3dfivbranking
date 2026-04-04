@@ -2569,6 +2569,21 @@ body.country-card-open #infoButtonWrap {
 }
 
 @media (min-width: 769px) {
+	#controlsWrap {
+		left: auto !important;
+		right: 32px !important;
+		transform: none !important;
+		width: auto !important;
+		justify-content: flex-end;
+	}
+
+	#controlsWrap .gender-toggle {
+		position: fixed;
+		top: 24px;
+		left: 28px;
+		z-index: 110;
+	}
+
 	.gender-btn {
 		min-width: 54px;
 		width: 54px;
@@ -2581,25 +2596,6 @@ body.country-card-open #infoButtonWrap {
 
 	#btnLeaderboard.control-chip {
 		min-width: 126px;
-	}
-}
-
-@media (min-width: 1024px) {
-	#btnLeaderboard.control-chip {
-		position: fixed;
-		top: 24px;
-		left: 28px;
-		min-width: 136px;
-		z-index: 110;
-	}
-}
-
-@media (max-width: 1023px) {
-	#btnLeaderboard.control-chip {
-		position: static;
-		top: auto;
-		left: auto;
-		z-index: auto;
 	}
 }
 
