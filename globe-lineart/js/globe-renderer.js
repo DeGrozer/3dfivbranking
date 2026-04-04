@@ -14,6 +14,7 @@ const GlobeRenderer = (function() {
 	let tooltip;                  // Tooltip element for country names
 	let pinGroup;                 // Group for volleyball pins
 	let flagGroup;                // Group for flag images
+	let vnlBadgeGroup;
 	let lands;                    // Selection of country path elements
 	let countries;                // GeoJSON features data for all countries
 	
@@ -30,9 +31,13 @@ const GlobeRenderer = (function() {
 	let lastTime = Date.now();    // Last animation frame timestamp
 	let currentScale = GLOBE_CONSTANTS.scale;  // Current zoom scale level
 	let isDraggingGlobe = false;
+	let dragDistance = 0;
 	let minScale = 200;           // Minimum zoom scale
 	let maxScale = 500;           // Maximum zoom scale
 	let zoomStep = 30;
+	let hoveredVnlCentroid = null;
+	let hoveredVnlFeature = null;
+	let hoveredVnlInfo = null;
 
 	function updateZoomBounds() {
 		const isMobile = window.matchMedia('(max-width: 768px)').matches;
@@ -165,6 +170,9 @@ const GlobeRenderer = (function() {
 		
 		console.log('✓ Rendered', lands.size(), 'land paths');
 		console.log('✓ Rendered', countryAreas.size(), 'interaction paths');
+
+		// Keep VNL hover markers on top of all map layers.
+		vnlBadgeGroup = g.append('g').attr('class', 'vnl-badges');
 		
 		attachCountryInteractions(countryAreas);
 	}
@@ -178,9 +186,22 @@ const GlobeRenderer = (function() {
 				const index = countries.indexOf(d);
 				d3.select(lands.nodes()[index]).classed('hover', true);
 				const countryName = getCountryName(d);
-				tooltip.style('display', 'block').text(countryName);
+				const vnlInfo = window.getVnlBadgeInfo ? window.getVnlBadgeInfo(countryName) : null;
+				const isVnlMode = !!(window.isTournamentVnlModeEnabled && window.isTournamentVnlModeEnabled());
+				hoveredVnlCentroid = vnlInfo ? d3.geoCentroid(d) : null;
+				hoveredVnlFeature = vnlInfo ? d : null;
+				hoveredVnlInfo = vnlInfo;
+				renderVnlHoverMarker();
+
+				if (isVnlMode && vnlInfo) {
+					tooltip.style('display', 'none');
+				} else {
+					tooltip.style('display', 'block').text(countryName);
+				}
 			})
 			.on('mousemove', (e) => {
+				const isVnlMode = !!(window.isTournamentVnlModeEnabled && window.isTournamentVnlModeEnabled());
+				if (isVnlMode && hoveredVnlInfo) return;
 				tooltip
 					.style('left', `${e.clientX + 12}px`)
 					.style('top', `${e.clientY - 28}px`);
@@ -189,6 +210,10 @@ const GlobeRenderer = (function() {
 				const index = countries.indexOf(d);
 				d3.select(lands.nodes()[index]).classed('hover', false);
 				tooltip.style('display', 'none');
+				hoveredVnlCentroid = null;
+				hoveredVnlFeature = null;
+				hoveredVnlInfo = null;
+				renderVnlHoverMarker();
 			})
 			.on('click', (e, d) => {
 				if (isDraggingGlobe) return;
@@ -304,6 +329,88 @@ const GlobeRenderer = (function() {
 			.style('border', '2px solid #fff')
 			.style('box-shadow', '0 2px 8px rgba(0,0,0,0.3)');
 	}
+
+	function renderVnlHoverMarker() {
+		if (!vnlBadgeGroup) return;
+		vnlBadgeGroup.selectAll('*').remove();
+
+		if (!hoveredVnlCentroid || !hoveredVnlInfo || !hoveredVnlFeature) return;
+		const anchor = getMainlandAnchor(hoveredVnlFeature);
+		if (!anchor) return;
+		const x = anchor[0];
+		const y = Math.max(26, anchor[1] - 44);
+		if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+
+		const badge = vnlBadgeGroup.append('g')
+			.attr('transform', `translate(${x}, ${y})`)
+			.attr('pointer-events', 'none');
+
+		badge.append('rect')
+			.attr('x', -34)
+			.attr('y', -22)
+			.attr('width', 68)
+			.attr('height', 38)
+			.attr('rx', 12)
+			.attr('fill', '#1f4aa8')
+			.attr('stroke', '#0f2a52')
+			.attr('stroke-width', 2.2);
+
+		badge.append('text')
+			.attr('text-anchor', 'middle')
+			.attr('dominant-baseline', 'central')
+			.attr('dy', '0.1em')
+			.attr('font-size', 22)
+			.attr('font-weight', 400)
+			.attr('font-family', '"VNL", "Barlow Condensed", sans-serif')
+			.attr('letter-spacing', '0.55px')
+			.attr('fill', '#facc15')
+			.text('VNL');
+
+		badge.append('path')
+			.attr('d', 'M0,16 L-7,30 L7,30 Z')
+			.attr('fill', '#1f4aa8')
+			.attr('stroke', '#0f2a52')
+			.attr('stroke-width', 2);
+
+		vnlBadgeGroup.raise();
+	}
+
+	function getMainlandAnchor(feature) {
+		if (!feature?.geometry) return null;
+
+		if (feature.geometry.type === 'MultiPolygon' && Array.isArray(feature.geometry.coordinates)) {
+			let bestPolygon = null;
+			let bestArea = -1;
+
+			feature.geometry.coordinates.forEach(coords => {
+				const polygonGeom = { type: 'Polygon', coordinates: coords };
+				const area = d3.geoArea(polygonGeom);
+				if (area > bestArea) {
+					bestArea = area;
+					bestPolygon = polygonGeom;
+				}
+			});
+
+			if (bestPolygon) {
+				const projected = path.centroid(bestPolygon);
+				if (Array.isArray(projected) && Number.isFinite(projected[0]) && Number.isFinite(projected[1])) {
+					return projected;
+				}
+			}
+		}
+
+		const projected = path.centroid(feature);
+		if (Array.isArray(projected) && Number.isFinite(projected[0]) && Number.isFinite(projected[1])) {
+			return projected;
+		}
+
+		const projectedGeo = projection(d3.geoCentroid(feature));
+		if (Array.isArray(projectedGeo) && Number.isFinite(projectedGeo[0]) && Number.isFinite(projectedGeo[1])) {
+			return projectedGeo;
+		}
+
+		return null;
+	}
 	
 	/**
 	 * Get country name from feature
@@ -311,6 +418,37 @@ const GlobeRenderer = (function() {
 	function getCountryName(feature) {
 		// Try to find country name from rankings
 		return feature.properties?.name || `Country ${feature.id}`;
+	}
+
+	function normalizeCountryLookupName(name) {
+		if (!name) return '';
+		return String(name)
+			.toLowerCase()
+			.normalize('NFD')
+			.replace(/[\u0300-\u036f]/g, '')
+			.replace(/[.,'()]/g, ' ')
+			.replace(/&/g, ' and ')
+			.replace(/\s+/g, ' ')
+			.trim();
+	}
+
+	const COUNTRY_NAME_ALIASES = {
+		bih: 'bosnia and herzegovina',
+		'bosnia and herz': 'bosnia and herzegovina',
+		'bosnia and herzeg': 'bosnia and herzegovina',
+		'bosnia and herzegovina': 'bosnia and herzegovina',
+		'czech republic': 'czechia',
+		turkiye: 'turkey',
+		usa: 'united states',
+		'us': 'united states',
+		'uk': 'united kingdom',
+		'korea republic of': 'south korea',
+		'republic of korea': 'south korea'
+	};
+
+	function canonicalCountryName(name) {
+		const normalized = normalizeCountryLookupName(name);
+		return COUNTRY_NAME_ALIASES[normalized] || normalized;
 	}
 	
 	/**
@@ -323,18 +461,33 @@ const GlobeRenderer = (function() {
 		lands.classed('selected', false);
 		pinGroup.selectAll('*').remove();
 		flagGroup.selectAll('*').remove();
+		hoveredVnlCentroid = null;
+		hoveredVnlFeature = null;
+		hoveredVnlInfo = null;
+		renderVnlHoverMarker();
 	}
 	
 	/**
 	 * Select country by name (for leaderboard integration)
 	 */
 	function selectCountryByName(countryName) {
-		const normalizedName = countryName.toLowerCase().trim();
+		const normalizedName = canonicalCountryName(countryName);
+		const requestedTokens = new Set(normalizedName.split(' ').filter(Boolean));
 		
 		// Find the country feature by name
 		const feature = countries.find(c => {
-			const name = (c.properties?.name || '').toLowerCase();
-			return name === normalizedName || name.includes(normalizedName) || normalizedName.includes(name);
+			const name = canonicalCountryName(c.properties?.name || '');
+			if (!name) return false;
+
+			if (name === normalizedName || name.includes(normalizedName) || normalizedName.includes(name)) {
+				return true;
+			}
+
+			if (!requestedTokens.size) return false;
+			const tokens = name.split(' ').filter(Boolean);
+			const overlap = tokens.filter(token => requestedTokens.has(token)).length;
+			const threshold = requestedTokens.size > 2 ? 2 : requestedTokens.size;
+			return overlap >= threshold;
 		});
 		
 		if (feature) {
@@ -348,7 +501,7 @@ const GlobeRenderer = (function() {
 	 * Render/update globe
 	 */
 	function render() {
-		g.selectAll('path').attr('d', path);
+		g.selectAll('path.graticule, path.land, path.country-area').attr('d', path);
 		svg.select('circle.sea')
 			.attr('r', projection.scale())
 			.attr('cx', GLOBE_CONSTANTS.width / 2)
@@ -359,6 +512,7 @@ const GlobeRenderer = (function() {
 			addVolleyballPin(selectedCentroid);
 			addFlagMarker(selectedCentroid, selectedCountry);
 		}
+		renderVnlHoverMarker();
 	}
 	
 	/**
@@ -371,12 +525,14 @@ const GlobeRenderer = (function() {
 			d3.drag()
 				.on('start', (event) => {
 					isDraggingGlobe = false;
+					dragDistance = 0;
 					autoRotate = false;
 				})
 				.on('drag', (event) => {
-					isDraggingGlobe = true;
 					const deltaX = event.dx;
 					const deltaY = event.dy;
+					dragDistance += Math.hypot(deltaX, deltaY);
+					isDraggingGlobe = dragDistance > 4;
 					rotation.lambda += deltaX * GLOBE_CONSTANTS.dragSensitivity;
 					rotation.phi += -deltaY * GLOBE_CONSTANTS.dragSensitivity;
 					rotation.phi = Math.max(-90, Math.min(90, rotation.phi));
@@ -387,6 +543,7 @@ const GlobeRenderer = (function() {
 					// Reset in next tick so click/touchend handlers can read drag state.
 					setTimeout(() => {
 						isDraggingGlobe = false;
+						dragDistance = 0;
 					}, 0);
 				})
 		);
@@ -444,6 +601,7 @@ const GlobeRenderer = (function() {
 		init,
 		clearSelection,
 		selectCountryByName,
+		refreshTournamentMarkers: render,
 		zoomIn,
 		zoomOut
 	};

@@ -10,13 +10,662 @@
 	let currentGender = 'women';  // Current gender mode (women or men)
 	let rankingsData = null;       // Cached rankings for current gender
 	let worldMapData = null;       // GeoJSON world map data
+	let activeTournamentCountry = '';
+	let activeTournamentType = '';
+	let startupAnimationCleanup = null;
+	let vnlStatusPopupAnimationCleanup = null;
+	let vnlCardPreviewTimer = null;
+	let lastSelectedCountryContext = null;
 
 	function isMobileViewport() {
 		return window.matchMedia('(max-width: 768px)').matches;
 	}
 
 	function applyMobileCountryLayout(isOpen) {
+		document.body.classList.toggle('country-card-open', !!isOpen);
 		document.body.classList.toggle('mobile-country-open', isMobileViewport() && isOpen);
+	}
+
+	function disposeVnlStatusPopupAnimation() {
+		if (typeof vnlStatusPopupAnimationCleanup === 'function') {
+			vnlStatusPopupAnimationCleanup();
+		}
+		vnlStatusPopupAnimationCleanup = null;
+	}
+
+	function clearVnlCardPreviewTimer() {
+		if (vnlCardPreviewTimer) {
+			clearTimeout(vnlCardPreviewTimer);
+			vnlCardPreviewTimer = null;
+		}
+	}
+
+	function stopVnlPreviewAnimations(card) {
+		if (!card) return;
+		card.classList.remove(
+			'vnl-body-led-newcomer',
+			'vnl-body-led-relegated',
+			'vnl-body-led-champion'
+		);
+
+		const topLed = card.querySelector('.card-top-vnl-led');
+		if (topLed) {
+			topLed.classList.add('is-static');
+		}
+	}
+
+	function scheduleVnlPreviewReset(card, vnlStatus) {
+		clearVnlCardPreviewTimer();
+		if (!card || !vnlStatus || activeTournamentType !== 'vnl') return;
+		card.classList.remove('vnl-preview-static');
+
+		const topLed = card.querySelector('.card-top-vnl-led');
+		if (topLed) {
+			topLed.classList.remove('is-static');
+		}
+
+		const isPreviewStatus = (
+			vnlStatus.status === 'newcomer' ||
+			vnlStatus.status === 'relegated' ||
+			(vnlStatus.isDefendingChampion && vnlStatus.status !== 'relegated')
+		);
+		if (!isPreviewStatus) return;
+
+		vnlCardPreviewTimer = setTimeout(() => {
+			if (!card.classList.contains('show')) return;
+			card.classList.add('vnl-preview-static');
+			stopVnlPreviewAnimations(card);
+			vnlCardPreviewTimer = null;
+		}, 3000);
+	}
+
+	function createThreeVolleyballAnimation(canvas, options = {}) {
+		if (typeof THREE === 'undefined' || !canvas) return null;
+
+		const mode = String(options.mode || 'default').toLowerCase();
+		const spinSpeed = Number.isFinite(options.spinSpeed) ? options.spinSpeed : 0.018;
+		const seamColor = Number.isFinite(options.seamColor) ? options.seamColor : 0x1f4aa8;
+		const ballColor = Number.isFinite(options.ballColor) ? options.ballColor : 0xf8fafc;
+		const accentColor = Number.isFinite(options.accentColor) ? options.accentColor : 0xfacc15;
+
+		const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+		renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+
+		const scene = new THREE.Scene();
+		const camera = new THREE.PerspectiveCamera(34, 1, 0.1, 100);
+		camera.position.set(0, 0, 4.2);
+
+		const root = new THREE.Group();
+		scene.add(root);
+		const effectsGroup = new THREE.Group();
+		scene.add(effectsGroup);
+
+		const sphereGeometry = new THREE.SphereGeometry(1, 40, 40);
+		const sphereMaterial = new THREE.MeshStandardMaterial({
+			color: ballColor,
+			roughness: 0.42,
+			metalness: 0.08
+		});
+		const ball = new THREE.Mesh(sphereGeometry, sphereMaterial);
+		root.add(ball);
+
+		const seamMaterial = new THREE.MeshStandardMaterial({
+			color: seamColor,
+			roughness: 0.38,
+			metalness: 0.04
+		});
+		const seamGeometryA = new THREE.TorusGeometry(1.03, 0.05, 16, 120);
+		const seamGeometryB = new THREE.TorusGeometry(1.03, 0.05, 16, 120);
+		const seamGeometryC = new THREE.TorusGeometry(1.03, 0.05, 16, 120);
+
+		const seamA = new THREE.Mesh(seamGeometryA, seamMaterial);
+		seamA.rotation.x = Math.PI / 2;
+		root.add(seamA);
+
+		const seamB = new THREE.Mesh(seamGeometryB, seamMaterial);
+		seamB.rotation.y = Math.PI / 2.25;
+		root.add(seamB);
+
+		const seamC = new THREE.Mesh(seamGeometryC, seamMaterial);
+		seamC.rotation.z = Math.PI / 2.35;
+		root.add(seamC);
+
+		let pulseRing = null;
+		let pulseRingGeometry = null;
+		let pulseRingMaterial = null;
+		let directionArrow = null;
+		let directionArrowBodyGeometry = null;
+		let directionArrowHeadGeometry = null;
+		let directionArrowMaterial = null;
+		let championHalo = null;
+		let championHaloGeometry = null;
+		let championHaloMaterial = null;
+		let loadingShadow = null;
+		let loadingShadowGeometry = null;
+		let loadingShadowMaterial = null;
+
+		if (mode === 'newcomer' || mode === 'relegated') {
+			pulseRingGeometry = new THREE.TorusGeometry(1.28, 0.05, 14, 90);
+			pulseRingMaterial = new THREE.MeshStandardMaterial({
+				color: accentColor,
+				emissive: accentColor,
+				emissiveIntensity: 0.05,
+				transparent: true,
+				opacity: 0.62,
+				roughness: 0.38,
+				metalness: 0.08
+			});
+			pulseRing = new THREE.Mesh(pulseRingGeometry, pulseRingMaterial);
+			pulseRing.rotation.x = Math.PI / 2;
+			pulseRing.position.y = mode === 'newcomer' ? -1.05 : 1.05;
+			effectsGroup.add(pulseRing);
+
+			directionArrowBodyGeometry = new THREE.CylinderGeometry(0.08, 0.08, 0.65, 16);
+			directionArrowHeadGeometry = new THREE.ConeGeometry(0.19, 0.35, 20);
+			directionArrowMaterial = new THREE.MeshStandardMaterial({
+				color: accentColor,
+				emissive: accentColor,
+				emissiveIntensity: 0.06,
+				roughness: 0.34,
+				metalness: 0.12
+			});
+
+			const arrowBody = new THREE.Mesh(directionArrowBodyGeometry, directionArrowMaterial);
+			const arrowHead = new THREE.Mesh(directionArrowHeadGeometry, directionArrowMaterial);
+			directionArrow = new THREE.Group();
+
+			if (mode === 'newcomer') {
+				arrowBody.position.y = 0.04;
+				arrowHead.position.y = 0.48;
+				directionArrow.position.y = -1.45;
+			} else {
+				arrowBody.position.y = -0.04;
+				arrowHead.rotation.x = Math.PI;
+				arrowHead.position.y = -0.48;
+				directionArrow.position.y = 1.45;
+			}
+
+			directionArrow.add(arrowBody);
+			directionArrow.add(arrowHead);
+			effectsGroup.add(directionArrow);
+		}
+
+		if (mode === 'champion') {
+			championHaloGeometry = new THREE.TorusGeometry(1.34, 0.07, 18, 120);
+			championHaloMaterial = new THREE.MeshStandardMaterial({
+				color: accentColor,
+				emissive: 0xd4a017,
+				emissiveIntensity: 0.08,
+				roughness: 0.24,
+				metalness: 0.48
+			});
+			championHalo = new THREE.Mesh(championHaloGeometry, championHaloMaterial);
+			championHalo.rotation.x = Math.PI / 2.1;
+			championHalo.position.y = 1.05;
+			effectsGroup.add(championHalo);
+		}
+
+		if (mode === 'loading') {
+			loadingShadowGeometry = new THREE.CircleGeometry(0.95, 40);
+			loadingShadowMaterial = new THREE.MeshBasicMaterial({
+				color: 0x0b2548,
+				transparent: true,
+				opacity: 0.25
+			});
+			loadingShadow = new THREE.Mesh(loadingShadowGeometry, loadingShadowMaterial);
+			loadingShadow.rotation.x = -Math.PI / 2;
+			loadingShadow.position.y = -1.18;
+			effectsGroup.add(loadingShadow);
+		}
+
+		const ambient = new THREE.AmbientLight(0xffffff, 0.64);
+		scene.add(ambient);
+
+		const keyLight = new THREE.DirectionalLight(0xffffff, 1.1);
+		keyLight.position.set(2.1, 2.8, 3.5);
+		scene.add(keyLight);
+
+		const rimLight = new THREE.DirectionalLight(0xa5d8ff, 0.82);
+		rimLight.position.set(-2.4, -1.6, -2.7);
+		scene.add(rimLight);
+
+		const resize = () => {
+			const rect = canvas.getBoundingClientRect();
+			const width = Math.max(1, Math.round(rect.width || canvas.clientWidth || 1));
+			const height = Math.max(1, Math.round(rect.height || canvas.clientHeight || 1));
+
+			renderer.setSize(width, height, false);
+			camera.aspect = width / height;
+			camera.updateProjectionMatrix();
+		};
+
+		resize();
+
+		let rafId = 0;
+		const animate = () => {
+			const t = performance.now() * 0.001;
+			const phase = (t * 0.95) % 1;
+			ball.position.y = 0;
+			root.position.y = 0;
+			root.scale.set(1, 1, 1);
+			root.rotation.y += spinSpeed;
+			root.rotation.z += spinSpeed * 0.52;
+
+			if (mode === 'loading') {
+				const bounce = Math.max(0, Math.sin(t * 3.1));
+				const hop = Math.pow(bounce, 1.35);
+				root.rotation.x = Math.sin(t * 2.4) * 0.09;
+				ball.position.y = hop * 0.84;
+				root.position.y = -0.56 + (hop * 0.56);
+				root.scale.y = 1.02 - (hop * 0.1);
+				root.scale.x = 1 - (hop * 0.05);
+				root.scale.z = 1 - (hop * 0.05);
+				if (loadingShadow) {
+					const squash = 1.05 - (hop * 0.38);
+					loadingShadow.scale.set(squash, squash, squash);
+					loadingShadow.material.opacity = 0.16 + (1 - hop) * 0.58;
+				}
+			} else if (mode === 'newcomer') {
+				root.rotation.x = Math.sin(t * 1.5) * 0.06;
+				ball.position.y = Math.sin(t * 2.2) * 0.06 + 0.06;
+				if (directionArrow) {
+					directionArrow.position.y = -1.45 + phase * 0.7;
+				}
+				if (pulseRing) {
+					const pulse = 0.84 + 0.26 * Math.sin(t * 4.4);
+					pulseRing.scale.set(pulse, pulse, pulse);
+					pulseRing.material.opacity = 0.5 + 0.3 * (0.5 + 0.5 * Math.sin(t * 4.4));
+				}
+			} else if (mode === 'relegated') {
+				root.rotation.x = -Math.abs(Math.sin(t * 1.35)) * 0.1;
+				ball.position.y = -Math.abs(Math.sin(t * 1.8)) * 0.08;
+				if (directionArrow) {
+					directionArrow.position.y = 1.45 - phase * 0.78;
+				}
+				if (pulseRing) {
+					const pulse = 0.82 + 0.2 * Math.sin(t * 3.8 + Math.PI / 2);
+					pulseRing.scale.set(pulse, pulse, pulse);
+					pulseRing.material.opacity = 0.42 + 0.24 * (0.5 + 0.5 * Math.sin(t * 3.8));
+				}
+			} else if (mode === 'champion') {
+				root.rotation.x = Math.sin(t * 1.2) * 0.05;
+				if (championHalo) {
+					championHalo.rotation.z += spinSpeed * 0.78;
+					championHalo.position.y = 1.02 + Math.sin(t * 1.9) * 0.05;
+				}
+			} else {
+				root.rotation.x = Math.sin(t * 1.25) * 0.08;
+			}
+
+			renderer.render(scene, camera);
+			rafId = requestAnimationFrame(animate);
+		};
+		animate();
+
+		window.addEventListener('resize', resize);
+
+		return () => {
+			cancelAnimationFrame(rafId);
+			window.removeEventListener('resize', resize);
+
+			sphereGeometry.dispose();
+			sphereMaterial.dispose();
+			seamGeometryA.dispose();
+			seamGeometryB.dispose();
+			seamGeometryC.dispose();
+			seamMaterial.dispose();
+			if (pulseRingGeometry) pulseRingGeometry.dispose();
+			if (pulseRingMaterial) pulseRingMaterial.dispose();
+			if (directionArrowBodyGeometry) directionArrowBodyGeometry.dispose();
+			if (directionArrowHeadGeometry) directionArrowHeadGeometry.dispose();
+			if (directionArrowMaterial) directionArrowMaterial.dispose();
+			if (championHaloGeometry) championHaloGeometry.dispose();
+			if (championHaloMaterial) championHaloMaterial.dispose();
+			if (loadingShadowGeometry) loadingShadowGeometry.dispose();
+			if (loadingShadowMaterial) loadingShadowMaterial.dispose();
+			renderer.dispose();
+		};
+	}
+
+	function escapeHtml(value) {
+		return String(value ?? '')
+			.replace(/&/g, '&amp;')
+			.replace(/</g, '&lt;')
+			.replace(/>/g, '&gt;')
+			.replace(/"/g, '&quot;')
+			.replace(/'/g, '&#39;');
+	}
+
+	function formatVnlYearList(years) {
+		if (!Array.isArray(years) || !years.length) return 'None';
+		return years.join(', ');
+	}
+
+	function buildVnlMedalChip(type, count, years) {
+		const medalLabelByType = {
+			gold: 'Gold',
+			silver: 'Silver',
+			bronze: 'Bronze'
+		};
+		const medalPrefixByType = {
+			gold: 'G',
+			silver: 'S',
+			bronze: 'B'
+		};
+		const safeType = medalLabelByType[type] ? type : 'gold';
+		const safeCount = Number.isFinite(Number(count)) ? Number(count) : 0;
+		const tooltip = `${medalLabelByType[safeType]} editions: ${formatVnlYearList(years)}`;
+		const stateClass = safeCount > 0 ? 'is-earned' : 'is-zero';
+
+		return `<span class="vnl-medal-chip ${safeType} ${stateClass}" title="${escapeHtml(tooltip)}">${medalPrefixByType[safeType]} ${safeCount}</span>`;
+	}
+
+	function buildVnlHistoryTooltip(vnlHistory) {
+		if (!vnlHistory) return 'No VNL edition history available';
+		return [
+			`Gold: ${formatVnlYearList(vnlHistory.goldYears)}`,
+			`Silver: ${formatVnlYearList(vnlHistory.silverYears)}`,
+			`Bronze: ${formatVnlYearList(vnlHistory.bronzeYears)}`
+		].join(' | ');
+	}
+
+	function buildVnlInlineStatus(vnlStatus, countryName, ranking) {
+		if (!vnlStatus || activeTournamentType !== 'vnl') return '';
+
+		const safeRank = Number(ranking?.rank);
+		const previousEdition = getVnlPreviousEditionInfo(countryName, ranking, vnlStatus.seasonYear);
+		let label = 'VNL TEAM';
+		let subline = `${countryName} • VNL ${vnlStatus.seasonYear}`;
+		let toneClass = 'is-active';
+		let flowDirection = '';
+
+		if (vnlStatus.status === 'newcomer') {
+			label = 'PROMOTED TEAM';
+			subline = `${countryName} • Promoted for VNL ${vnlStatus.seasonYear}`;
+			toneClass = 'is-newcomer';
+			flowDirection = 'forward';
+		} else if (vnlStatus.status === 'relegated') {
+			const downYear = vnlStatus.previousSeasonYear || (Number(vnlStatus.seasonYear) - 1);
+			label = 'RELEGATED TEAM';
+			subline = `${countryName} • Relegated after ${downYear}`;
+			toneClass = 'is-relegated';
+			flowDirection = 'backward';
+		}
+
+		if (vnlStatus.isDefendingChampion && vnlStatus.status !== 'relegated') {
+			label = 'DEFENDING CHAMPION';
+			subline = `${countryName} • VNL ${vnlStatus.seasonYear} title holder`;
+			toneClass = 'is-champion';
+			flowDirection = '';
+		}
+
+		if (Number.isFinite(safeRank)) {
+			subline += ` • World #${safeRank}`;
+		}
+
+		const previousYearLabel = Number.isFinite(Number(previousEdition.year)) ? previousEdition.year : 'N/A';
+		const previousMedalLabel = previousEdition.medalLabel || 'No podium';
+		const flowMarkup = flowDirection
+			? `<span class="vnl-status-flow ${flowDirection}" aria-hidden="true">${flowDirection === 'forward' ? '>>>>>>' : '<<<<<<'}</span>`
+			: '';
+		const trophyMarkup = (vnlStatus.isDefendingChampion && vnlStatus.status !== 'relegated')
+			? `<img class="vnl-inline-trophy" src="${VNL_TROPHY_IMAGE_PATH}" alt="VNL trophy" onerror="this.style.display='none'">`
+			: '';
+		const medalChipsMarkup = [
+			buildVnlMedalChip('gold', previousEdition.gold, previousEdition.goldYears),
+			buildVnlMedalChip('silver', previousEdition.silver, previousEdition.silverYears),
+			buildVnlMedalChip('bronze', previousEdition.bronze, previousEdition.bronzeYears)
+		].join('');
+
+		return `
+			<div class="vnl-inline-banner ${toneClass}">
+				<div class="vnl-inline-main">
+					${trophyMarkup}
+					<div class="vnl-inline-copy">
+						<div class="vnl-inline-line">
+							<span class="vnl-inline-label">${escapeHtml(label)}</span>
+							${flowMarkup}
+						</div>
+						<span class="vnl-inline-subline">${escapeHtml(subline)}</span>
+					</div>
+				</div>
+				<div class="vnl-inline-prev">
+					<span class="vnl-inline-prev-label">Previous Edition (${escapeHtml(previousYearLabel)}): ${escapeHtml(previousMedalLabel)}</span>
+					<div class="vnl-history-medals">
+						${medalChipsMarkup}
+					</div>
+				</div>
+			</div>
+		`;
+	}
+
+	function clearChampionTopBanner(card) {
+		if (!card) return;
+		const existingBanner = card.querySelector('.card-top-vnl-banner');
+		if (existingBanner) {
+			existingBanner.remove();
+		}
+	}
+
+	function getVnlTopBannerMeta(vnlStatus) {
+		let label = 'VNL TEAM';
+		let toneClass = 'is-active';
+		let ledDirection = '';
+		let showTrophy = false;
+
+		if (vnlStatus?.status === 'newcomer') {
+			label = 'PROMOTED TEAM';
+			toneClass = 'is-newcomer';
+			ledDirection = 'right';
+		} else if (vnlStatus?.status === 'relegated') {
+			label = 'RELEGATED TEAM';
+			toneClass = 'is-relegated';
+			ledDirection = 'left';
+		}
+
+		if (vnlStatus?.isDefendingChampion && vnlStatus?.status !== 'relegated') {
+			label = 'DEFENDING CHAMPION';
+			toneClass = 'is-champion';
+			showTrophy = false;
+			ledDirection = '';
+		}
+
+		return {
+			label,
+			toneClass,
+			ledDirection,
+			showTrophy
+		};
+	}
+
+	function renderVnlTopBanner(card, vnlStatus, countryName, ranking) {
+		if (!card || !vnlStatus || activeTournamentType !== 'vnl') {
+			clearChampionTopBanner(card);
+			return;
+		}
+
+		clearChampionTopBanner(card);
+		const bannerMeta = getVnlTopBannerMeta(vnlStatus);
+		const trophyMarkup = bannerMeta.showTrophy
+			? `<img class="card-top-vnl-trophy" src="${VNL_TROPHY_IMAGE_PATH}" alt="VNL trophy" onerror="this.style.display='none'">`
+			: '';
+		const ledMarkup = bannerMeta.ledDirection
+			? `<span class="card-top-vnl-led ${bannerMeta.ledDirection}" aria-hidden="true"></span>`
+			: '';
+
+		const banner = document.createElement('div');
+		banner.className = `card-top-vnl-banner ${bannerMeta.toneClass}`;
+		banner.innerHTML = `
+			${trophyMarkup}
+			<div class="card-top-vnl-copy">
+				<span class="card-top-vnl-label">${escapeHtml(bannerMeta.label)}</span>
+			</div>
+			${ledMarkup}
+		`;
+
+		const cardHeader = card.querySelector('.card-header');
+		if (cardHeader) {
+			card.insertBefore(banner, cardHeader);
+		}
+	}
+
+	function positionVnlStatusPopup() {
+		const popup = document.getElementById('vnlStatusPopup');
+		const card = document.querySelector('.country-card');
+		if (!popup || !card || !popup.classList.contains('show') || !card.classList.contains('show')) return;
+
+		const cardRect = card.getBoundingClientRect();
+		const viewportW = window.innerWidth || document.documentElement.clientWidth || 0;
+		const viewportH = window.innerHeight || document.documentElement.clientHeight || 0;
+		const gap = isMobileViewport() ? 8 : 10;
+
+		popup.style.width = `${Math.round(cardRect.width)}px`;
+		const popupRect = popup.getBoundingClientRect();
+		let top = cardRect.top - popupRect.height - gap;
+		if (top < 12) {
+			top = cardRect.bottom + gap;
+		}
+		if ((top + popupRect.height) > (viewportH - 12)) {
+			top = Math.max(12, viewportH - popupRect.height - 12);
+		}
+
+		const maxLeft = Math.max(12, viewportW - popupRect.width - 12);
+		const left = Math.min(maxLeft, Math.max(12, cardRect.left));
+
+		popup.style.left = `${Math.round(left)}px`;
+		popup.style.top = `${Math.round(top)}px`;
+	}
+
+	function hideVnlStatusPopup() {
+		const popup = document.getElementById('vnlStatusPopup');
+		if (!popup) return;
+
+		disposeVnlStatusPopupAnimation();
+		popup.classList.remove('show', 'is-active', 'is-newcomer', 'is-relegated', 'is-champion', 'is-gold', 'is-silver', 'is-bronze');
+		popup.style.left = '';
+		popup.style.top = '';
+		popup.style.width = '';
+		popup.innerHTML = '';
+		popup.setAttribute('aria-hidden', 'true');
+	}
+
+	function showVnlStatusPopup(vnlStatus, countryName, ranking) {
+		const popup = document.getElementById('vnlStatusPopup');
+		if (!popup) return;
+		if (!vnlStatus || activeTournamentType !== 'vnl') {
+			hideVnlStatusPopup();
+			return;
+		}
+
+		if (vnlStatus.isDefendingChampion && vnlStatus.status !== 'relegated') {
+			hideVnlStatusPopup();
+			return;
+		}
+
+		disposeVnlStatusPopupAnimation();
+		const safeRank = Number(ranking?.rank);
+		const previousEdition = getVnlPreviousEditionInfo(countryName, ranking, vnlStatus.seasonYear);
+
+		let label = 'VNL TEAM';
+		let subline = `${countryName} • VNL ${vnlStatus.seasonYear}`;
+		let toneClass = 'is-active';
+		let flowDirection = '';
+
+		if (vnlStatus.status === 'newcomer') {
+			label = 'PROMOTED TEAM';
+			subline = `${countryName} • Promoted for VNL ${vnlStatus.seasonYear}`;
+			toneClass = 'is-newcomer';
+			flowDirection = 'forward';
+		} else if (vnlStatus.status === 'relegated') {
+			const downYear = vnlStatus.previousSeasonYear || (Number(vnlStatus.seasonYear) - 1);
+			label = 'RELEGATED TEAM';
+			subline = `${countryName} • Relegated after ${downYear}`;
+			toneClass = 'is-relegated';
+			flowDirection = 'backward';
+		}
+
+		if (vnlStatus.isDefendingChampion && vnlStatus.status !== 'relegated') {
+			label = 'DEFENDING CHAMPION';
+			subline = `${countryName}`;
+			toneClass = 'is-champion';
+			flowDirection = '';
+		}
+
+		if (!vnlStatus.isDefendingChampion && Number.isFinite(safeRank) && safeRank === 1) {
+			toneClass = 'is-champion';
+		}
+
+		if (Number.isFinite(safeRank)) {
+			subline += ` • World #${safeRank}`;
+		}
+
+		const trophyMarkup = (vnlStatus.isDefendingChampion && vnlStatus.status !== 'relegated')
+			? `<img class="vnl-status-trophy" src="${VNL_TROPHY_IMAGE_PATH}" alt="VNL trophy" onerror="this.style.display='none'">`
+			: '';
+
+		const flowText = flowDirection === 'forward' ? '>>>>>>' : '<<<<<<';
+		const flowMarkup = flowDirection
+			? `<span class="vnl-status-flow ${flowDirection}" aria-hidden="true">${flowText}</span>`
+			: '';
+
+		const raceMarkup = flowDirection
+			? `<div class="vnl-status-race ${flowDirection}" aria-hidden="true">${flowText.repeat(8)}</div>`
+			: '';
+
+		const previousYearLabel = Number.isFinite(Number(previousEdition.year)) ? previousEdition.year : 'N/A';
+		const previousMedalLabel = previousEdition.medalLabel || 'No podium';
+		const regularMedalMarkup = [
+			buildVnlMedalChip('gold', previousEdition.gold, previousEdition.goldYears),
+			buildVnlMedalChip('silver', previousEdition.silver, previousEdition.silverYears),
+			buildVnlMedalChip('bronze', previousEdition.bronze, previousEdition.bronzeYears)
+		].join('');
+
+		const championGoldMarkup = buildVnlMedalChip(
+			'gold',
+			1,
+			Number.isFinite(Number(previousEdition.year)) ? [Number(previousEdition.year)] : []
+		);
+
+		const historyMarkup = vnlStatus.isDefendingChampion && vnlStatus.status !== 'relegated'
+			? `
+				<div class="vnl-status-history champion-only">
+					<div class="vnl-history-medals">
+						${championGoldMarkup}
+					</div>
+				</div>
+			`
+			: `
+				<div class="vnl-status-history">
+					<div class="vnl-history-medals">
+						${regularMedalMarkup}
+					</div>
+					<span class="vnl-history-winners">Previous Edition (${escapeHtml(previousYearLabel)}): ${escapeHtml(previousMedalLabel)}</span>
+				</div>
+			`;
+
+
+		popup.innerHTML = `
+			<div class="vnl-status-popup-inner">
+				${raceMarkup}
+				${trophyMarkup}
+				<div class="vnl-status-copy">
+					<div class="vnl-status-line">
+						<span class="vnl-status-label">${escapeHtml(label)}</span>
+						${flowMarkup}
+					</div>
+					<span class="vnl-status-subline">${escapeHtml(subline)}</span>
+					${historyMarkup}
+				</div>
+			</div>
+		`;
+
+		popup.classList.remove('is-active', 'is-newcomer', 'is-relegated', 'is-champion', 'is-gold', 'is-silver', 'is-bronze');
+		popup.classList.add('show', toneClass);
+		popup.setAttribute('aria-hidden', 'false');
+
+		positionVnlStatusPopup();
+		requestAnimationFrame(positionVnlStatusPopup);
+		setTimeout(positionVnlStatusPopup, 420);
 	}
 
 	function setupMobileTitleToggle() {
@@ -35,7 +684,54 @@
 			if (!document.querySelector('.country-card')?.classList.contains('show')) {
 				applyMobileCountryLayout(false);
 			}
+			positionVnlStatusPopup();
 		});
+	}
+
+	function setupReleaseNotesModal() {
+		const modal = document.getElementById('releaseNotesModal');
+		const closeBtn = document.getElementById('releaseNotesClose');
+		const openFromInfoBtn = document.getElementById('openReleaseNotesFromInfo');
+		if (!modal) return;
+
+		const closeModal = () => {
+			modal.classList.add('hidden');
+			modal.setAttribute('aria-hidden', 'true');
+		};
+
+		if (closeBtn) {
+			closeBtn.addEventListener('click', closeModal);
+		}
+
+		modal.addEventListener('click', (e) => {
+			if (e.target === modal) {
+				closeModal();
+			}
+		});
+
+		if (openFromInfoBtn) {
+			openFromInfoBtn.addEventListener('click', () => {
+				hideInfoModal();
+				showReleaseNotesModal();
+			});
+		}
+	}
+
+	function showReleaseNotesModal() {
+		const modal = document.getElementById('releaseNotesModal');
+		if (!modal) return;
+
+		modal.classList.remove('hidden');
+		modal.setAttribute('aria-hidden', 'false');
+	}
+
+	function shouldAutoShowReleaseNotes() {
+		try {
+			const params = new URLSearchParams(window.location.search);
+			return params.get('notes') === '1';
+		} catch (error) {
+			return false;
+		}
 	}
 	
 	// ============================================================================
@@ -172,13 +868,357 @@
 			bannedYear: 2022
 		}
 	};
+
+	const VNL_TEAMS_API = {
+		women: new Set(),
+		men: new Set()
+	};
+
+	// Manual map for current defending champions until Volleyball World API exposes champion metadata.
+	const VNL_DEFENDING_CHAMPIONS = {
+		women: {
+			2026: 'ITA',
+			2025: 'ITA'
+		},
+		men: {
+			2026: 'FRA',
+			2025: 'FRA'
+		}
+	};
+
+	const VNL_TROPHY_IMAGE_PATH = 'src/assets/img/vnl.png';
+
+	const VNL_PAST_PODIUMS = {
+		women: {
+			2021: { gold: 'USA', silver: 'BRA', bronze: 'TUR' },
+			2022: { gold: 'ITA', silver: 'BRA', bronze: 'SRB' },
+			2023: { gold: 'TUR', silver: 'CHN', bronze: 'POL' },
+			2024: { gold: 'ITA', silver: 'JPN', bronze: 'POL' },
+			2025: { gold: 'ITA', silver: '', bronze: '' }
+		},
+		men: {
+			2021: { gold: 'BRA', silver: 'POL', bronze: 'FRA' },
+			2022: { gold: 'FRA', silver: 'USA', bronze: 'POL' },
+			2023: { gold: 'POL', silver: 'USA', bronze: 'JPN' },
+			2024: { gold: 'FRA', silver: 'JPN', bronze: 'POL' },
+			2025: { gold: 'FRA', silver: '', bronze: '' }
+		}
+	};
+
+	function createEmptyVnlSeasonState() {
+		const nowYear = new Date().getFullYear();
+		return {
+			requestedYear: nowYear,
+			seasonYear: nowYear,
+			previousSeasonYear: null,
+			isFallbackYear: false,
+			availableYears: [],
+			activeTeams: [],
+			activeTeamRecords: [],
+			newcomerTeams: [],
+			relegatedTeams: [],
+			activeSet: new Set(),
+			teamByNormalizedName: new Map(),
+			newcomerSet: new Set(),
+			relegatedSet: new Set(),
+			defendingChampionCode: '',
+			defendingChampionName: ''
+		};
+	}
+
+	const VNL_SEASON_STATE = {
+		women: createEmptyVnlSeasonState(),
+		men: createEmptyVnlSeasonState()
+	};
+
+	function normalizeTeamName(name) {
+		if (!name) return '';
+		const normalized = String(name)
+			.toLowerCase()
+			.trim()
+			.normalize('NFD')
+			.replace(/[\u0300-\u036f]/g, '')
+			.replace(/[^a-z\s]/g, ' ')
+			.replace(/\s+/g, ' ')
+			.trim();
+
+		const aliases = {
+			'united states of america': 'united states',
+			'usa': 'united states',
+			'us': 'united states',
+			'bih': 'bosnia and herzegovina',
+			'bosnia and herz': 'bosnia and herzegovina',
+			'bosnia and herzeg': 'bosnia and herzegovina',
+			'turkiye': 'turkey',
+			'czech republic': 'czechia',
+			'republic of korea': 'korea',
+			'south korea': 'korea',
+			'korea republic of': 'korea',
+			'dominican rep': 'dominican republic'
+		};
+
+		return aliases[normalized] || normalized;
+	}
+
+	function resolveCountryCode(countryName, ranking) {
+		const rankingCode = String(ranking?.federationCode || '').toUpperCase().trim();
+		if (rankingCode) return rankingCode;
+
+		const normalized = normalizeTeamName(countryName);
+		const state = VNL_SEASON_STATE[currentGender] || createEmptyVnlSeasonState();
+		const teamRecord = state.teamByNormalizedName instanceof Map
+			? state.teamByNormalizedName.get(normalized)
+			: null;
+		const vnlCode = String(teamRecord?.federationCode || '').toUpperCase().trim();
+		if (vnlCode) return vnlCode;
+
+		const fallbackByName = {
+			'bosnia and herzegovina': 'BIH',
+			'bosnia and herz': 'BIH',
+			'bosnia and herzeg': 'BIH',
+			'turkey': 'TUR',
+			'czechia': 'CZE',
+			'south korea': 'KOR',
+			'korea': 'KOR',
+			'russia': 'RUS',
+			'russian federation': 'RUS',
+			'belarus': 'BLR'
+		};
+
+		return fallbackByName[normalized] || '';
+	}
+
+	function getWorldRankMedalTier(rank, tournamentType) {
+		const numericRank = Number(rank);
+		if (!Number.isFinite(numericRank)) return '';
+
+		if (numericRank === 1) return 'gold';
+		if (!!tournamentType && numericRank === 2) return 'silver';
+		if (!!tournamentType && numericRank === 3) return 'bronze';
+		return '';
+	}
+
+	function getVnlPastWinners(countryName, ranking) {
+		const code = resolveCountryCode(countryName, ranking);
+		const podiumByGender = VNL_PAST_PODIUMS[currentGender] || {};
+		const seasons = Object.keys(podiumByGender)
+			.map(year => Number(year))
+			.filter(Number.isFinite)
+			.sort((a, b) => a - b);
+		const goldYears = [];
+		const silverYears = [];
+		const bronzeYears = [];
+
+		seasons.forEach(season => {
+			const podium = podiumByGender[season] || {};
+			if (String(podium.gold || '').toUpperCase() === code) goldYears.push(season);
+			if (String(podium.silver || '').toUpperCase() === code) silverYears.push(season);
+			if (String(podium.bronze || '').toUpperCase() === code) bronzeYears.push(season);
+		});
+
+		const seasonsLabel = seasons.length
+			? `${seasons[0]}-${seasons[seasons.length - 1]}`
+			: '';
+
+		return {
+			code,
+			gold: goldYears.length,
+			silver: silverYears.length,
+			bronze: bronzeYears.length,
+			winnerYears: goldYears,
+			goldYears,
+			silverYears,
+			bronzeYears,
+			seasonsLabel
+		};
+	}
+
+	function getVnlPreviousEditionInfo(countryName, ranking, seasonYear) {
+		const code = resolveCountryCode(countryName, ranking);
+		const podiumByGender = VNL_PAST_PODIUMS[currentGender] || {};
+		const seasons = Object.keys(podiumByGender)
+			.map(year => Number(year))
+			.filter(Number.isFinite)
+			.sort((a, b) => a - b);
+
+		if (!seasons.length) {
+			return {
+				year: null,
+				medalType: 'none',
+				medalLabel: 'No podium',
+				gold: 0,
+				silver: 0,
+				bronze: 0,
+				goldYears: [],
+				silverYears: [],
+				bronzeYears: []
+			};
+		}
+
+		const safeSeasonYear = Number(seasonYear);
+		const preferredYear = Number.isFinite(safeSeasonYear) ? (safeSeasonYear - 1) : null;
+		let targetYear = preferredYear && seasons.includes(preferredYear)
+			? preferredYear
+			: null;
+
+		if (!targetYear) {
+			const earlierYears = Number.isFinite(safeSeasonYear)
+				? seasons.filter(year => year < safeSeasonYear)
+				: seasons;
+			targetYear = earlierYears.length ? earlierYears[earlierYears.length - 1] : seasons[seasons.length - 1];
+		}
+
+		const podium = podiumByGender[targetYear] || {};
+		const isGold = String(podium.gold || '').toUpperCase() === code;
+		const isSilver = String(podium.silver || '').toUpperCase() === code;
+		const isBronze = String(podium.bronze || '').toUpperCase() === code;
+		const medalType = isGold ? 'gold' : (isSilver ? 'silver' : (isBronze ? 'bronze' : 'none'));
+		const medalLabelByType = {
+			gold: 'Gold',
+			silver: 'Silver',
+			bronze: 'Bronze',
+			none: 'No podium'
+		};
+
+		return {
+			year: targetYear,
+			medalType,
+			medalLabel: medalLabelByType[medalType] || 'No podium',
+			gold: isGold ? 1 : 0,
+			silver: isSilver ? 1 : 0,
+			bronze: isBronze ? 1 : 0,
+			goldYears: isGold ? [targetYear] : [],
+			silverYears: isSilver ? [targetYear] : [],
+			bronzeYears: isBronze ? [targetYear] : []
+		};
+	}
+
+	function resolveDefendingChampionCode(gender, seasonYear, activeTeams = []) {
+		const byGender = VNL_DEFENDING_CHAMPIONS[gender] || {};
+		const requested = Number(seasonYear);
+		const candidates = [
+			byGender[requested],
+			byGender[requested - 1],
+			byGender.default
+		]
+			.filter(Boolean)
+			.map(code => String(code).toUpperCase());
+
+		if (!candidates.length) return '';
+
+		const activeCodes = new Set(
+			activeTeams
+				.map(team => String(team?.federationCode || '').toUpperCase())
+				.filter(Boolean)
+		);
+
+		if (!activeCodes.size) {
+			return candidates[0] || '';
+		}
+
+		return candidates.find(code => activeCodes.has(code)) || '';
+	}
+
+	function createStatusPayload(state, status, isDefendingChampion) {
+		return {
+			status,
+			seasonYear: state.seasonYear,
+			previousSeasonYear: state.previousSeasonYear,
+			isFallbackYear: state.isFallbackYear,
+			isDefendingChampion: !!isDefendingChampion
+		};
+	}
+
+	function getVnlCountryStatus(countryName) {
+		if (activeTournamentType !== 'vnl') return null;
+
+		const normalized = normalizeTeamName(countryName);
+		const state = VNL_SEASON_STATE[currentGender] || createEmptyVnlSeasonState();
+		const teamRecord = state.teamByNormalizedName instanceof Map
+			? state.teamByNormalizedName.get(normalized)
+			: null;
+		const teamCode = String(teamRecord?.federationCode || '').toUpperCase();
+		const championCode = String(state.defendingChampionCode || '').toUpperCase();
+		const championByName = normalizeTeamName(state.defendingChampionName || '') === normalized;
+		const isDefendingChampion = championByName || (!!championCode && championCode === teamCode);
+
+		if (state.newcomerSet.has(normalized)) {
+			return createStatusPayload(state, 'newcomer', isDefendingChampion);
+		}
+
+		if (state.activeSet.has(normalized)) {
+			return createStatusPayload(state, 'active', isDefendingChampion);
+		}
+
+		if (state.relegatedSet.has(normalized)) {
+			return createStatusPayload(state, 'relegated', false);
+		}
+
+		return null;
+	}
+
+	function getVnlCountryInfo(countryName) {
+		const status = getVnlCountryStatus(countryName);
+		if (!status) return null;
+
+		const seasonYear = Number(status.seasonYear) || new Date().getFullYear();
+		let statusLabel = 'VNL TEAM';
+		if (status.status === 'newcomer') {
+			statusLabel = 'VNL NEWCOMER';
+		}
+		if (status.status === 'relegated') {
+			statusLabel = 'PAST RELEGATED';
+		}
+		if (status.isDefendingChampion) {
+			statusLabel = 'DEFENDING CHAMPION';
+		}
+
+		return {
+			label: statusLabel,
+			status: status.status,
+			seasonYear,
+			previousSeasonYear: status.previousSeasonYear,
+			isFallbackYear: !!status.isFallbackYear,
+			isDefendingChampion: !!status.isDefendingChampion
+		};
+	}
+
+	function getVnlSeasonSummary(gender = currentGender) {
+		const state = VNL_SEASON_STATE[gender] || createEmptyVnlSeasonState();
+		if (!state.activeTeams.length) return '';
+
+		const newcomerCount = state.newcomerTeams.length;
+		const relegatedCount = state.relegatedTeams.length;
+		const fallbackNote = state.isFallbackYear ? ' (latest season in API)' : '';
+
+		return `VNL ${state.seasonYear}${fallbackNote} - ${newcomerCount} newcomer${newcomerCount === 1 ? '' : 's'}, ${relegatedCount} relegated`;
+	}
+
+	function isCountryInActiveTournament(countryName) {
+		if (activeTournamentType !== 'vnl') return false;
+		return !!getVnlCountryInfo(countryName);
+	}
+
+	function getTournamentLabel(type) {
+		switch (type) {
+			case 'vnl': return 'Volleyball Nations League';
+			case 'world': return 'World Championship';
+			case 'eurovolley': return 'EuroVolley';
+			case 'olympics': return 'Olympics';
+			default: return 'Tournament';
+		}
+	}
 	
 	/**
 	 * Initialize application
 	 */
 	async function init() {
+		const loadStart = performance.now();
 		try {
 			showLoading(true);
+			window.getVnlBadgeInfo = getVnlCountryInfo;
+			window.isTournamentVnlModeEnabled = () => activeTournamentType === 'vnl';
+			window.isCountryInActiveTournament = isCountryInActiveTournament;
 			
 			// Load world map data
 			worldMapData = await DataLoader.loadWorldMap();
@@ -193,16 +1233,30 @@
 			setupCardClose();
 			setupSparklineHover();
 			setupLeaderboard();
+			setupTournamentToggle();
+			setupTournamentModal();
 			setupInfoModal();
 			setupMobileTitleToggle();
+			setupReleaseNotesModal();
 			
 			// Setup country selection callback
 			window.onCountrySelected = handleCountrySelection;
+			void refreshVnlTeamsFromApi(currentGender);
+
+			const minLoaderMs = 1150;
+			const elapsed = performance.now() - loadStart;
+			if (elapsed < minLoaderMs) {
+				await new Promise(resolve => setTimeout(resolve, minLoaderMs - elapsed));
+			}
 			
 			showLoading(false);
+			if (shouldAutoShowReleaseNotes()) {
+				setTimeout(showReleaseNotesModal, 760);
+			}
 			
 		} catch (error) {
 			console.error('Initialization error:', error);
+			showLoading(false);
 			showError('Failed to load application. Please refresh the page.');
 		}
 	}
@@ -332,25 +1386,28 @@
 		const btnWomen = document.getElementById('btnWomen');
 		const btnMen = document.getElementById('btnMen');
 		
-		// Update button styles
-		if (currentGender === 'women') {
-			btnWomen.classList.add('active', 'bg-pink-600');
-			btnWomen.classList.remove('bg-gray-600');
-			btnMen.classList.remove('active', 'bg-blue-600');
-			btnMen.classList.add('bg-gray-600');
-		} else {
-			btnMen.classList.add('active', 'bg-blue-600');
-			btnMen.classList.remove('bg-gray-600');
-			btnWomen.classList.remove('active', 'bg-pink-600');
-			btnWomen.classList.add('bg-gray-600');
-		}
+		const isWomen = currentGender === 'women';
+		btnWomen.classList.toggle('active', isWomen);
+		btnMen.classList.toggle('active', !isWomen);
+		btnWomen.setAttribute('aria-pressed', String(isWomen));
+		btnMen.setAttribute('aria-pressed', String(!isWomen));
 		
 		// Update body class for theme
 		document.body.className = document.body.className.replace(/women|men/, currentGender);
 		
 		// Close any open card
 		hideCountryCard();
+		hideTournamentModal();
 		GlobeRenderer.clearSelection();
+		window.getVnlBadgeInfo = getVnlCountryInfo;
+		window.isTournamentVnlModeEnabled = () => activeTournamentType === 'vnl';
+		window.isCountryInActiveTournament = isCountryInActiveTournament;
+		if (activeTournamentType === 'vnl') {
+			void refreshVnlTeamsFromApi(currentGender).then(() => {
+				GlobeRenderer.refreshTournamentMarkers?.();
+			});
+		}
+		GlobeRenderer.refreshTournamentMarkers?.();
 	}
 	
 	/**
@@ -364,7 +1421,7 @@
 				month: 'long',
 				day: 'numeric'
 			});
-			dateEl.textContent = `as of ${today}`;
+			dateEl.textContent = `as of: ${today}`;
 		}
 	}
 	
@@ -386,36 +1443,270 @@
 	 */
 	function setupLeaderboard() {
 		const btnLeaderboard = document.getElementById('btnLeaderboard');
-		const closeLeaderboard = document.getElementById('closeLeaderboard');
-		const modal = document.getElementById('leaderboardModal');
-		const searchInput = document.getElementById('leaderboardSearch');
-		
 		if (btnLeaderboard) {
 			btnLeaderboard.addEventListener('click', () => {
-				showLeaderboard();
+				openRankingsPage();
 			});
 		}
-		
-		if (closeLeaderboard) {
-			closeLeaderboard.addEventListener('click', () => {
-				hideLeaderboard();
-			});
+	}
+
+	function openRankingsPage() {
+		const params = new URLSearchParams();
+		params.set('gender', currentGender);
+		if (activeTournamentType) {
+			params.set('tournament', activeTournamentType);
 		}
-		
-		// Close on backdrop click
-		if (modal) {
-			modal.addEventListener('click', (e) => {
-				if (e.target === modal) {
-					hideLeaderboard();
+		window.location.href = `rankings.html?${params.toString()}`;
+	}
+
+	function setupTournamentModal() {
+		const tournamentModal = document.getElementById('tournamentModal');
+		const closeTournament = document.getElementById('closeTournament');
+		const openCountryBtn = document.getElementById('tournamentOpenCountry');
+		const tournamentContent = document.getElementById('tournamentContent');
+
+		if (openCountryBtn) {
+			openCountryBtn.style.display = 'none';
+		}
+
+		if (closeTournament) {
+			closeTournament.addEventListener('click', hideTournamentModal);
+		}
+
+		if (tournamentModal) {
+			tournamentModal.addEventListener('click', (e) => {
+				if (e.target === tournamentModal) {
+					hideTournamentModal();
 				}
 			});
 		}
-		
-		// Search functionality
-		if (searchInput) {
-			searchInput.addEventListener('input', (e) => {
-				filterLeaderboard(e.target.value);
+
+		if (openCountryBtn) {
+			openCountryBtn.addEventListener('click', () => {
+				const team = activeTournamentCountry;
+				hideTournamentModal();
+				if (team) {
+					GlobeRenderer.selectCountryByName(team);
+				}
 			});
+		}
+
+		if (tournamentContent) {
+			tournamentContent.addEventListener('click', (e) => {
+				const target = e.target.closest('[data-tournament-select]');
+				if (!target) return;
+				if (target.hasAttribute('disabled') || target.getAttribute('data-under-construction') === '1') {
+					return;
+				}
+				const type = target.getAttribute('data-tournament-select') || '';
+				void applyTournamentSelection(type);
+			});
+		}
+	}
+
+	function setupTournamentToggle() {
+		const btnTournament = document.getElementById('btnTournament');
+		if (!btnTournament) return;
+
+		btnTournament.addEventListener('click', () => {
+			showTournamentPickerModal();
+		});
+	}
+
+	async function applyTournamentSelection(type) {
+		const normalizedType = String(type || '').toLowerCase();
+		if (normalizedType && normalizedType !== 'all' && normalizedType !== 'vnl') {
+			return;
+		}
+
+		activeTournamentType = normalizedType === 'all' ? '' : normalizedType;
+		if (activeTournamentType === 'vnl') {
+			await refreshVnlTeamsFromApi(currentGender);
+		} else {
+			hideVnlStatusPopup();
+			clearVnlCardPreviewTimer();
+			const activeCard = document.querySelector('.country-card');
+			if (activeCard) {
+				activeCard.classList.remove('vnl-active-card', 'vnl-champion-card', 'vnl-newcomer-card', 'vnl-relegated-card', 'vnl-past-relegated-card', 'vnl-body-led-newcomer', 'vnl-body-led-relegated', 'vnl-body-led-champion', 'vnl-preview-static');
+				clearChampionTopBanner(activeCard);
+			}
+		}
+		document.body.classList.toggle('tournament-vnl', activeTournamentType === 'vnl');
+		const btnTournament = document.getElementById('btnTournament');
+		if (btnTournament) {
+			btnTournament.classList.toggle('active', !!activeTournamentType);
+		}
+
+		window.getVnlBadgeInfo = getVnlCountryInfo;
+		window.isTournamentVnlModeEnabled = () => activeTournamentType === 'vnl';
+		window.isCountryInActiveTournament = isCountryInActiveTournament;
+		if (lastSelectedCountryContext && document.querySelector('.country-card')?.classList.contains('show')) {
+			showCountryCard(
+				lastSelectedCountryContext.countryName,
+				lastSelectedCountryContext.countryId,
+				lastSelectedCountryContext.ranking
+			);
+		}
+		GlobeRenderer.refreshTournamentMarkers?.();
+		hideTournamentModal();
+	}
+
+	async function refreshVnlTeamsFromApi(gender) {
+		try {
+			const requestedYear = new Date().getFullYear();
+
+			if (typeof RankingFetcher.getVnlSeasonSnapshot === 'function') {
+				const snapshot = await RankingFetcher.getVnlSeasonSnapshot(gender, { year: requestedYear });
+				const activeTeams = Array.isArray(snapshot?.teams) ? snapshot.teams : [];
+				const newcomerTeams = Array.isArray(snapshot?.newcomerTeams) ? snapshot.newcomerTeams : [];
+				const relegatedTeams = Array.isArray(snapshot?.relegatedTeams) ? snapshot.relegatedTeams : [];
+				const seasonYear = snapshot?.seasonYear || requestedYear;
+
+				const activeTeamRecords = activeTeams
+					.map(team => ({
+						federationName: String(team?.federationName || '').trim(),
+						federationCode: String(team?.federationCode || '').toUpperCase().trim()
+					}))
+					.filter(team => !!team.federationName);
+
+				const activeNames = activeTeamRecords.map(team => team.federationName);
+				const newcomerNames = newcomerTeams.map(team => team?.federationName).filter(Boolean);
+				const relegatedNames = relegatedTeams.map(team => team?.federationName).filter(Boolean);
+				const teamByNormalizedName = new Map(
+					activeTeamRecords.map(team => [normalizeTeamName(team.federationName), team])
+				);
+				const defendingChampionCode = resolveDefendingChampionCode(gender, seasonYear, activeTeamRecords);
+				const defendingChampion = activeTeamRecords.find(team => team.federationCode === defendingChampionCode);
+
+				const activeSet = new Set(activeNames.map(name => normalizeTeamName(name)));
+				const newcomerSet = new Set(newcomerNames.map(name => normalizeTeamName(name)));
+				const relegatedSet = new Set(relegatedNames.map(name => normalizeTeamName(name)));
+
+				VNL_TEAMS_API[gender] = activeSet;
+				VNL_SEASON_STATE[gender] = {
+					requestedYear: snapshot?.requestedYear || requestedYear,
+					seasonYear,
+					previousSeasonYear: snapshot?.previousSeasonYear || null,
+					isFallbackYear: !!snapshot?.isFallbackYear,
+					availableYears: Array.isArray(snapshot?.availableYears) ? snapshot.availableYears : [],
+					activeTeams: activeNames,
+					activeTeamRecords,
+					newcomerTeams: newcomerNames,
+					relegatedTeams: relegatedNames,
+					activeSet,
+					teamByNormalizedName,
+					newcomerSet,
+					relegatedSet,
+					defendingChampionCode,
+					defendingChampionName: defendingChampion?.federationName || ''
+				};
+				return;
+			}
+
+			const teams = typeof RankingFetcher.getCurrentVnlTeams === 'function'
+				? await RankingFetcher.getCurrentVnlTeams(gender, { year: requestedYear })
+				: await RankingFetcher.getTournamentTeams(gender, 'vnl');
+
+			const activeTeamRecords = Array.isArray(teams)
+				? teams
+					.map(team => {
+						if (typeof team === 'string') {
+							return {
+								federationName: team,
+								federationCode: ''
+							};
+						}
+
+						return {
+							federationName: String(team?.federationName || '').trim(),
+							federationCode: String(team?.federationCode || '').toUpperCase().trim()
+						};
+					})
+					.filter(team => !!team.federationName)
+				: [];
+
+			const names = activeTeamRecords.map(team => team.federationName);
+			const teamByNormalizedName = new Map(
+				activeTeamRecords.map(team => [normalizeTeamName(team.federationName), team])
+			);
+			const defendingChampionCode = resolveDefendingChampionCode(gender, requestedYear, activeTeamRecords);
+			const defendingChampion = activeTeamRecords.find(team => team.federationCode === defendingChampionCode);
+
+			const activeSet = new Set(names.map(name => normalizeTeamName(name)));
+			VNL_TEAMS_API[gender] = activeSet;
+			VNL_SEASON_STATE[gender] = {
+				requestedYear,
+				seasonYear: requestedYear,
+				previousSeasonYear: null,
+				isFallbackYear: false,
+				availableYears: [requestedYear],
+				activeTeams: names,
+				activeTeamRecords,
+				newcomerTeams: [],
+				relegatedTeams: [],
+				activeSet,
+				teamByNormalizedName,
+				newcomerSet: new Set(),
+				relegatedSet: new Set(),
+				defendingChampionCode,
+				defendingChampionName: defendingChampion?.federationName || ''
+			};
+		} catch (error) {
+			console.error('Failed to derive VNL teams from API:', error);
+			VNL_TEAMS_API[gender] = new Set();
+			VNL_SEASON_STATE[gender] = createEmptyVnlSeasonState();
+		}
+	}
+
+	function showTournamentPickerModal() {
+		const modal = document.getElementById('tournamentModal');
+		const content = document.getElementById('tournamentContent');
+		const title = document.getElementById('tournamentTitle');
+		const openCountryBtn = document.getElementById('tournamentOpenCountry');
+		const vnlSummary = getVnlSeasonSummary(currentGender);
+		if (!modal || !content) return;
+
+		activeTournamentCountry = '';
+		if (title) {
+			title.textContent = 'Choose Tournament';
+		}
+		if (openCountryBtn) {
+			openCountryBtn.style.display = 'none';
+		}
+
+		content.innerHTML = `
+			<div class="tournament-picker-grid">
+				<button type="button" class="tournament-select-btn ${activeTournamentType === '' ? 'selected' : ''}" data-tournament-select="all">
+					<i class="fa-solid fa-layer-group"></i>
+					<span>All Teams</span>
+				</button>
+				<button type="button" class="tournament-select-btn ${activeTournamentType === 'vnl' ? 'selected' : ''}" data-tournament-select="vnl">
+					<i class="fa-solid fa-volleyball"></i>
+					<span>VNL</span>
+				</button>
+				<button type="button" class="tournament-select-btn is-under-construction" data-tournament-select="world" data-under-construction="1" disabled>
+					<span class="tournament-construction-tape">Under Construction</span>
+					<i class="fa-solid fa-earth-europe"></i>
+					<span>World Championship</span>
+				</button>
+				<button type="button" class="tournament-select-btn is-under-construction" data-tournament-select="eurovolley" data-under-construction="1" disabled>
+					<span class="tournament-construction-tape">Under Construction</span>
+					<i class="fa-solid fa-flag-checkered"></i>
+					<span>EuroVolley</span>
+				</button>
+				<button type="button" class="tournament-select-btn is-under-construction" data-tournament-select="olympics" data-under-construction="1" disabled>
+					<span class="tournament-construction-tape">Under Construction</span>
+					<i class="fa-solid fa-medal"></i>
+					<span>Olympics</span>
+				</button>
+			</div>
+			<p class="tournament-picker-note">VNL is live now. Other tournament filters are being built.</p>
+			${vnlSummary ? `<p class="tournament-picker-meta">${vnlSummary}</p>` : ''}
+		`;
+
+		modal.classList.remove('opacity-0', 'pointer-events-none');
+		if (isMobileViewport()) {
+			document.body.classList.add('mobile-tournament-open');
 		}
 	}
 	
@@ -474,23 +1765,59 @@
 				content.innerHTML = '<div class="text-center text-gray-500 py-8 text-sm">No rankings available</div>';
 				return;
 			}
+
+			const displayRankings = activeTournamentType === 'vnl'
+				? rankings.filter(team => {
+					const vnlStatus = getVnlCountryStatus(team.teamName || '');
+					return !!vnlStatus;
+				})
+				: rankings;
+
+			if (!displayRankings.length) {
+				content.innerHTML = '<div class="text-center text-gray-500 py-8 text-sm">No teams in selected tournament filter</div>';
+				return;
+			}
 			
 			// Generate leaderboard HTML - cleaner table-like presentation
-			const rowsHtml = rankings.map((team, index) => {
+			const vnlSeasonSummary = activeTournamentType === 'vnl' ? getVnlSeasonSummary(currentGender) : '';
+			const rowsHtml = displayRankings.map((team, index) => {
 				const rank = team.rank || index + 1;
 				const flagUrl = `https://flagcdn.com/w40/${(team.teamCode || '').toLowerCase()}.png`;
 				const points = team.wrs?.toFixed(2) || '—';
+				const teamName = team.teamName || 'Unknown';
+				const vnlStatus = activeTournamentType === 'vnl' ? getVnlCountryStatus(teamName) : null;
+				const isVnlTeam = !!(vnlStatus && vnlStatus.status !== 'relegated');
+				const medalTier = getWorldRankMedalTier(rank, activeTournamentType);
+				const rowClasses = [];
+				if (isVnlTeam) rowClasses.push('vnl-team-row');
+				if (vnlStatus?.status === 'newcomer') rowClasses.push('vnl-newcomer-row');
+				if (vnlStatus?.status === 'relegated') rowClasses.push('vnl-relegated-row');
+				if (medalTier) rowClasses.push(`rank-${medalTier}`);
+				const vnlClass = rowClasses.length ? ` ${rowClasses.join(' ')}` : '';
+				let vnlBadge = '';
+				if (isVnlTeam) {
+					vnlBadge = '<span class="team-vnl-badge"><i class="fa-solid fa-trophy"></i>VNL</span>';
+					if (vnlStatus?.isDefendingChampion) {
+						vnlBadge += '<span class="team-vnl-badge champion"><i class="fa-solid fa-crown"></i>Champion</span>';
+					}
+					if (vnlStatus?.status === 'newcomer') {
+						vnlBadge += '<span class="team-vnl-badge newcomer"><i class="fa-solid fa-arrow-up"></i>Newcomer</span>';
+					}
+				} else if (vnlStatus?.status === 'relegated') {
+					vnlBadge = '<span class="team-vnl-badge relegated"><i class="fa-solid fa-arrow-down"></i>Relegated</span>';
+				}
 				let rankClass = '';
 				if (rank === 1) rankClass = 'top1';
 				else if (rank === 2) rankClass = 'top2';
 				else if (rank === 3) rankClass = 'top3';
 				
 				return `
-					<div class="leaderboard-row leaderboard-item" data-country="${team.teamName || ''}">
+					<div class="leaderboard-row leaderboard-item${vnlClass}" data-country="${teamName}" data-vnl="${isVnlTeam ? '1' : '0'}">
 						<div><span class="rank-pill ${rankClass}">${rank}</span></div>
 						<div class="team-cell">
 							<img src="${flagUrl}" alt="" class="team-flag" onerror="this.style.visibility='hidden'">
-							<span class="team-name">${team.teamName || 'Unknown'}</span>
+							<span class="team-name">${teamName}</span>
+							${vnlBadge}
 						</div>
 						<div class="team-points">${points}</div>
 					</div>
@@ -498,6 +1825,7 @@
 			}).join('');
 
 			content.innerHTML = `
+				${activeTournamentType ? `<div class="leaderboard-tour-banner"><i class="fa-solid fa-volleyball"></i><span>Tournament Focus: ${getTournamentLabel(activeTournamentType)}</span>${vnlSeasonSummary ? `<span class="leaderboard-tour-sub">${vnlSeasonSummary}</span>` : ''}</div>` : ''}
 				<div class="leaderboard-table-head">
 					<span>Rank</span>
 					<span>Team</span>
@@ -506,17 +1834,7 @@
 				${rowsHtml}
 			`;
 			
-			// Add click handlers to navigate to country
-			content.querySelectorAll('.leaderboard-item').forEach(item => {
-				item.addEventListener('click', () => {
-					const countryName = item.getAttribute('data-country');
-					hideLeaderboard();
-					// Trigger country selection on globe
-					if (countryName) {
-						GlobeRenderer.selectCountryByName(countryName);
-					}
-				});
-			});
+			// Keep modal list read-only when opened directly.
 			
 		} catch (error) {
 			console.error('Failed to load leaderboard:', error);
@@ -533,6 +1851,80 @@
 			modal.classList.add('opacity-0', 'pointer-events-none');
 		}
 		document.body.classList.remove('mobile-leaderboard-open');
+		document.body.classList.remove('mobile-tournament-open');
+	}
+
+	function showTournamentModal(countryName) {
+		const modal = document.getElementById('tournamentModal');
+		const content = document.getElementById('tournamentContent');
+		const openCountryBtn = document.getElementById('tournamentOpenCountry');
+		if (!modal || !content) return;
+
+		activeTournamentCountry = countryName || '';
+		const genderLabel = currentGender === 'women' ? 'Women' : 'Men';
+		const headingText = activeTournamentCountry || `${genderLabel} Tournament Overview`;
+		const title = document.getElementById('tournamentTitle');
+		if (title) {
+			title.textContent = getTournamentLabel(activeTournamentType || 'vnl');
+		}
+		const vnlStatus = activeTournamentType === 'vnl' ? getVnlCountryStatus(activeTournamentCountry) : null;
+		const vnlState = VNL_SEASON_STATE[currentGender] || createEmptyVnlSeasonState();
+		const seasonYear = vnlState.seasonYear || new Date().getFullYear();
+		const selectedRank = Number(lastSelectedCountryContext?.ranking?.rank);
+		const rankTier = getWorldRankMedalTier(selectedRank, activeTournamentType);
+		const rankLabel = Number.isFinite(selectedRank) ? `#${selectedRank}` : '—';
+		let chipLabel = `${genderLabel} Tournament Team`;
+		if (activeTournamentType === 'vnl') {
+			if (vnlStatus?.status === 'newcomer') chipLabel = `${genderLabel} VNL Newcomer`;
+			else if (vnlStatus?.status === 'relegated') chipLabel = `${genderLabel} Relegated Team`;
+			else chipLabel = `${genderLabel} VNL Team`;
+		}
+
+		const transitionSummary = activeTournamentType === 'vnl'
+			? `
+				<div class="tournament-transition">
+					<div class="tournament-transition-row"><span>Season</span><strong>VNL ${seasonYear}</strong></div>
+					<div class="tournament-transition-row"><span>Newcomers</span><strong>${vnlState.newcomerTeams.length}</strong></div>
+					<div class="tournament-transition-row"><span>Relegated</span><strong>${vnlState.relegatedTeams.length}</strong></div>
+				</div>
+			`
+			: '';
+
+		if (openCountryBtn) {
+			openCountryBtn.style.display = activeTournamentCountry ? 'inline-flex' : 'none';
+		}
+
+		content.innerHTML = `
+			<div class="tournament-team-row">
+				<div class="tournament-chip"><i class="fa-solid fa-trophy"></i><span>${chipLabel}</span></div>
+				<h4>${headingText}</h4>
+			</div>
+			<div class="tournament-list">
+				<div class="tournament-item"><span>World Rank</span><strong>${rankLabel}</strong></div>
+				<div class="tournament-item"><span>Podium Tier</span><strong>${rankTier ? rankTier.toUpperCase() : 'STANDARD'}</strong></div>
+				<div class="tournament-item"><span>Current Season</span><strong>VNL ${seasonYear}</strong></div>
+				<div class="tournament-item"><span>Defending Champion</span><strong>${vnlState.defendingChampionName || 'Unknown'}</strong></div>
+			</div>
+			${transitionSummary}
+		`;
+
+		modal.classList.remove('opacity-0', 'pointer-events-none');
+		if (isMobileViewport()) {
+			document.body.classList.add('mobile-tournament-open');
+		}
+	}
+
+	function hideTournamentModal() {
+		const modal = document.getElementById('tournamentModal');
+		const openCountryBtn = document.getElementById('tournamentOpenCountry');
+		if (modal) {
+			modal.classList.add('opacity-0', 'pointer-events-none');
+		}
+		if (openCountryBtn) {
+			openCountryBtn.style.display = 'none';
+		}
+		activeTournamentCountry = '';
+		document.body.classList.remove('mobile-tournament-open');
 	}
 	
 	/**
@@ -559,6 +1951,13 @@
 	 * Handle country selection from globe
 	 */
 	async function handleCountrySelection(countryId, countryName) {
+		// Open the card immediately so click feedback is instant.
+		try {
+			showCountryCard(countryName, countryId, null);
+		} catch (error) {
+			console.error('Failed to show country card placeholder:', error);
+		}
+
 		// Fetch live ranking from FIVB API
 		let ranking = null;
 		try {
@@ -567,12 +1966,16 @@
 			console.error('Failed to fetch ranking:', error);
 		}
 		
-		// Show card with ranking data
+		// Refresh card with ranking data when available.
 		try {
 			showCountryCard(countryName, countryId, ranking);
 		} catch (error) {
 			console.error('Failed to render country card:', error);
-			showCountryCard(countryName, countryId, null);
+			try {
+				showCountryCard(countryName, countryId, null);
+			} catch (fallbackError) {
+				console.error('Fallback country card render failed:', fallbackError);
+			}
 		}
 	}
 	
@@ -582,12 +1985,24 @@
 	function showCountryCard(countryName, countryId, ranking) {
 		const card = document.querySelector('.country-card');
 		if (!card) return;
+		disposeVnlStatusPopupAnimation();
+		clearVnlCardPreviewTimer();
+		lastSelectedCountryContext = {
+			countryName,
+			countryId,
+			ranking: ranking || null
+		};
 		
-		const iso2CodeRaw = DataLoader.getIso2Code(countryId);
+		const flagBase = (typeof API_CONFIG !== 'undefined' && API_CONFIG?.flags?.primary)
+			? API_CONFIG.flags.primary
+			: 'https://flagcdn.com/w320/';
+		const iso2CodeRaw = (typeof DataLoader !== 'undefined' && typeof DataLoader.getIso2Code === 'function')
+			? DataLoader.getIso2Code(countryId)
+			: '';
 		const iso2Code = (typeof iso2CodeRaw === 'string' && iso2CodeRaw.length === 2)
 			? iso2CodeRaw.toLowerCase()
 			: 'un';
-		const flagUrl = `${API_CONFIG.flags.primary}${iso2Code}.png`;
+		const flagUrl = `${flagBase}${iso2Code}.png`;
 		
 		// Update flag
 		const flagImg = card.querySelector('.country-flag');
@@ -607,13 +2022,74 @@
 		if (fedElement) {
 			fedElement.textContent = ranking?.confederationName || '';
 		}
+
+		const isVnlMode = activeTournamentType === 'vnl';
+		const vnlStatus = isVnlMode ? getVnlCountryStatus(countryName) : null;
+		const medalTier = getWorldRankMedalTier(ranking?.rank, activeTournamentType);
+		const isChampion = !!(vnlStatus?.isDefendingChampion && vnlStatus?.status !== 'relegated');
+		const isRelegated = vnlStatus?.status === 'relegated';
+		const numericRank = Number(ranking?.rank);
+		const isWorldNumberOne = Number.isFinite(numericRank) && numericRank === 1;
+		const shouldRenderVnlTopBanner = isVnlMode && !!vnlStatus;
+		const countryCode = resolveCountryCode(countryName, ranking);
+		const teamMeta = medalsData[countryCode] || null;
+		const isBannedTeam = !!teamMeta?.banned;
+		card.classList.remove(
+			'world-rank-gold-card',
+			'world-rank-silver-card',
+			'world-rank-bronze-card',
+			'vnl-active-card',
+			'vnl-newcomer-card',
+			'vnl-relegated-card',
+			'vnl-past-relegated-card',
+			'vnl-preview-static',
+			'vnl-body-led-newcomer',
+			'vnl-body-led-relegated',
+			'vnl-body-led-champion'
+		);
+		const isActiveVnlTeam = shouldRenderVnlTopBanner && !isChampion && !isRelegated && vnlStatus?.status !== 'newcomer';
+		card.classList.toggle('vnl-active-card', isActiveVnlTeam);
+		card.classList.toggle('vnl-champion-card', shouldRenderVnlTopBanner && isChampion);
+		card.classList.toggle('vnl-newcomer-card', shouldRenderVnlTopBanner && vnlStatus?.status === 'newcomer');
+		card.classList.toggle('vnl-relegated-card', shouldRenderVnlTopBanner && isRelegated);
+		card.classList.toggle('vnl-past-relegated-card', shouldRenderVnlTopBanner && isRelegated);
+		card.classList.toggle('vnl-body-led-newcomer', shouldRenderVnlTopBanner && vnlStatus?.status === 'newcomer');
+		card.classList.toggle('vnl-body-led-relegated', shouldRenderVnlTopBanner && isRelegated);
+		card.classList.toggle('vnl-body-led-champion', shouldRenderVnlTopBanner && isChampion);
+		if (isChampion || isWorldNumberOne) {
+			card.classList.add('world-rank-gold-card');
+		} else if (!vnlStatus || vnlStatus.status === 'active') {
+			if (medalTier === 'silver') {
+				card.classList.add('world-rank-silver-card');
+			} else if (medalTier === 'bronze') {
+				card.classList.add('world-rank-bronze-card');
+			}
+		}
+
+		clearChampionTopBanner(card);
+		if (shouldRenderVnlTopBanner) {
+			renderVnlTopBanner(card, vnlStatus, countryName, ranking);
+		}
+		scheduleVnlPreviewReset(card, vnlStatus);
 		
 		// Build card body content
 		const cardBody = card.querySelector('.card-body');
 		if (!cardBody) return;
 		
 		let bodyHtml = '<p class="text-gray-500 text-sm">No ranking data available</p>';
-		if (ranking) {
+		if (isBannedTeam) {
+			const bannedYear = Number(teamMeta?.bannedYear);
+			const bannedYearLabel = Number.isFinite(bannedYear) ? ` (${bannedYear})` : '';
+			bodyHtml = `
+				<div class="team-status-panel banned">
+					<div class="team-status-icon"><i class="fa-solid fa-skull-crossbones" aria-hidden="true"></i></div>
+					<div class="team-status-copy">
+						<h4>Banned / Suspended Team${bannedYearLabel}</h4>
+						<p>Competition activity is blocked due to war-related sanctions (Russia/Belarus suspension policy).</p>
+					</div>
+				</div>
+			`;
+		} else if (ranking) {
 			const safeRank = Number.isFinite(ranking.rank) ? ranking.rank : '—';
 			const safePoints = Number.isFinite(ranking.points) ? ranking.points.toFixed(2) : '—';
 			const matchHistoryHtml = generateMatchHistory(ranking.pointsProgression);
@@ -633,6 +2109,16 @@
 				${matchHistoryHtml}
 				${sparklineHtml}
 			`;
+		} else {
+			bodyHtml = `
+				<div class="team-status-panel inactive">
+					<div class="team-status-icon"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i></div>
+					<div class="team-status-copy">
+						<h4><span class="inactive-404">404</span> No Active Data</h4>
+						<p>Ranking data not found for this federation in the current feed.</p>
+					</div>
+				</div>
+			`;
 		}
 		
 		cardBody.innerHTML = bodyHtml;
@@ -640,6 +2126,7 @@
 		// Show card
 		card.classList.add('show');
 		applyMobileCountryLayout(true);
+		hideVnlStatusPopup();
 	}
 	
 	/**
@@ -706,12 +2193,12 @@
 		const lastDot = pathPoints[pathPoints.length - 1];
 		
 		return `
-			<div class="mt-3 bg-gray-100 rounded-lg border border-gray-200 overflow-visible relative">
-				<div class="flex items-center justify-between px-3 py-2 bg-gray-50 border-b border-gray-200">
-					<span class="text-xs text-gray-600 font-medium">Points Trend</span>
-					<span class="sparkline-value text-xs font-bold" style="color: ${lineColor}">${changeText} pts</span>
+			<div class="points-trend-shell mt-3 overflow-visible relative">
+				<div class="points-trend-head">
+					<span class="points-trend-title">Points Trend</span>
+					<span class="sparkline-value points-trend-value" style="color: ${lineColor}">${changeText} pts</span>
 				</div>
-				<div class="p-2 bg-white rounded-b-lg" style="height: 76px;">
+				<div class="points-trend-chart-wrap" style="height: 76px;">
 					<svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" style="display:block; width:100%; height:100%;" class="sparkline-chart">
 						<path d="${areaPath}" fill="${areaColor}" />
 						<path d="${linePath}" fill="none" stroke="${lineColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -766,7 +2253,6 @@
 		
 		const matchItems = recentMatches.map(match => {
 			const isWin = match.result === 'W';
-			const resultBg = isWin ? 'bg-green-500 text-white' : 'bg-red-500 text-white';
 			const resultText = isWin ? 'W' : 'L';
 			
 			// Opponent name
@@ -777,18 +2263,18 @@
 			const [setsWon, setsLost] = score.split('-');
 			
 			return `
-				<div class="grid grid-cols-[1fr_auto] items-center gap-2 py-2 border-b border-gray-100 last:border-0">
+				<div class="match-row">
 					<div class="flex items-center gap-2 min-w-0">
-						<span class="text-[11px] uppercase tracking-wide text-gray-400">vs</span>
-						<span class="text-sm text-gray-800 font-semibold truncate">${opponent}</span>
+						<span class="match-vs">vs</span>
+						<span class="match-opponent">${opponent}</span>
 					</div>
 					<div class="flex items-center gap-2 shrink-0">
-						<div class="text-center min-w-[38px]">
-							<span class="text-sm font-bold text-gray-800">${setsWon || '-'}</span>
-							<span class="text-xs text-gray-400 mx-0.5">:</span>
-							<span class="text-sm font-bold text-gray-500">${setsLost || '-'}</span>
+						<div class="text-center min-w-[46px] match-score">
+							<span>${setsWon || '-'}</span>
+							<span class="text-slate-400 mx-0.5">:</span>
+							<span class="text-slate-500">${setsLost || '-'}</span>
 						</div>
-						<span class="text-xs font-bold w-6 h-6 rounded-md flex items-center justify-center ${resultBg}">${resultText}</span>
+						<span class="match-badge ${isWin ? 'win' : 'loss'}">${resultText}</span>
 					</div>
 				</div>
 			`;
@@ -797,7 +2283,7 @@
 		return `
 			<div class="match-history">
 				<p class="text-xs text-gray-400 uppercase tracking-wider mb-2">Recent Matches</p>
-				<div class="bg-gray-50 rounded-lg px-3 py-1">
+				<div class="matches-shell">
 					${matchItems}
 				</div>
 			</div>
@@ -809,9 +2295,17 @@
 	 */
 	function hideCountryCard() {
 		const card = document.querySelector('.country-card');
+		clearVnlCardPreviewTimer();
 		if (card) {
 			card.classList.remove('show');
+			card.classList.remove('vnl-active-card');
+			card.classList.remove('vnl-champion-card');
+			card.classList.remove('vnl-newcomer-card', 'vnl-relegated-card', 'vnl-past-relegated-card', 'vnl-preview-static', 'vnl-body-led-newcomer', 'vnl-body-led-relegated', 'vnl-body-led-champion');
+			card.classList.remove('world-rank-gold-card', 'world-rank-silver-card', 'world-rank-bronze-card');
+			clearChampionTopBanner(card);
 		}
+		lastSelectedCountryContext = null;
+		hideVnlStatusPopup();
 		applyMobileCountryLayout(false);
 	}
 
@@ -994,8 +2488,43 @@
 	 * Show/hide loading indicator
 	 */
 	function showLoading(show) {
-		// Could add a loading spinner here
-		console.log(show ? 'Loading...' : 'Loaded');
+		const overlay = document.getElementById('startupOverlay');
+		if (!overlay) return;
+
+		if (show) {
+			overlay.style.display = 'flex';
+			overlay.classList.remove('loaded');
+			overlay.setAttribute('aria-hidden', 'false');
+
+			if (!startupAnimationCleanup) {
+				const canvas = document.getElementById('startupScene');
+				try {
+					startupAnimationCleanup = createThreeVolleyballAnimation(canvas, {
+						mode: 'loading',
+						spinSpeed: 0.02,
+						seamColor: 0x1f4aa8,
+						ballColor: 0xf8fafc
+					});
+				} catch (error) {
+					console.warn('Startup 3D animation failed, using CSS fallback bounce.', error);
+					startupAnimationCleanup = null;
+				}
+			}
+			overlay.classList.toggle('has-three-startup', typeof startupAnimationCleanup === 'function');
+			return;
+		}
+
+		overlay.classList.add('loaded');
+		overlay.classList.remove('has-three-startup');
+		overlay.setAttribute('aria-hidden', 'true');
+		setTimeout(() => {
+			overlay.style.display = 'none';
+		}, 650);
+
+		if (typeof startupAnimationCleanup === 'function') {
+			startupAnimationCleanup();
+		}
+		startupAnimationCleanup = null;
 	}
 	
 	/**

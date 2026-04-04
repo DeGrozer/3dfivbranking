@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>World Rankings List</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+	<link rel="stylesheet" href="css/rankings.css">
+</head>
+<body>
+	<main class="page-shell">
+		<header class="list-header">
+			<div>
+				<p class="eyebrow">Volleyball World Ranking</p>
+				<h1 id="pageTitle">Senior Volleyball Rankings</h1>
+				<p id="asOfDate" class="as-of-line">As of: --</p>
+			</div>
+			<a class="back-link" href="index.html" aria-label="Back to globe">
+				<i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
+				<span>Return to Globe</span>
+			</a>
+		</header>
+
+		<section class="toolbar">
+			<div class="gender-switch" role="tablist" aria-label="Gender">
+				<button id="womenTab" class="gender-tab" type="button" aria-selected="true">Women</button>
+				<button id="menTab" class="gender-tab" type="button" aria-selected="false">Men</button>
+			</div>
+			<div class="toolbar-right">
+				<label class="search-wrap" for="rankSearch">
+					<i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+					<input id="rankSearch" type="text" placeholder="Search country" autocomplete="off">
+				</label>
+			</div>
+		</section>
+
+		<section class="table-shell" aria-label="Rankings list">
+			<div class="table-head">
+				<span>Rank</span>
+				<span>Country</span>
+				<span class="points-col">Points</span>
+			</div>
+			<div id="rankingsBody" class="table-body">
+				<div class="loading-row">Loading rankings...</div>
+			</div>
+		</section>
+	</main>
+
+	<script src="js/ranking-fetcher.js"></script>
+	<script src="js/rankings-page.js"></script>
+</body>
+</html>

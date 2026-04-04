@@ -116,6 +116,7 @@ const RankingFetcher = (function() {
 				.map((team, index) => {
 					// Extract points progression from teamMatches
 					const pointsProgression = extractPointsProgression(team);
+					const teamMatches = Array.isArray(team.teamMatches) ? team.teamMatches : [];
 					
 					return {
 						rank: index + 1,
@@ -132,7 +133,9 @@ const RankingFetcher = (function() {
 						confederationName: team.confederationName || '',
 						confederationCode: team.confederationCode || '',
 						trend: team.trend || 0,
-						flagUrl: team.flagUrl || ''
+						flagUrl: team.flagUrl || '',
+						teamMatches,
+						teamAge: Number.isFinite(Number(team.teamAge)) ? Number(team.teamAge) : (Number.isFinite(Number(team.age)) ? Number(team.age) : null)
 					};
 				});
 			
@@ -191,38 +194,49 @@ const RankingFetcher = (function() {
 	 * Globe uses full names, FIVB uses short names
 	 */
 	function normalizeCountryName(name) {
-		const lowerName = name.toLowerCase().trim();
+		const lowerName = String(name || '')
+			.toLowerCase()
+			.trim()
+			.normalize('NFD')
+			.replace(/[\u0300-\u036f]/g, '')
+			.replace(/[.,'()]/g, ' ')
+			.replace(/&/g, ' and ')
+			.replace(/\s+/g, ' ')
+			.trim();
 		
 		// Map common variations
 		const nameMap = {
 			'united states of america': 'united states',
 			'usa': 'united states',
-			'u.s.a.': 'united states',
+			'us': 'united states',
+			'u s a': 'united states',
 			'russian federation': 'russia',
+			'bih': 'bosnia and herzegovina',
+			'bosnia and herz': 'bosnia and herzegovina',
+			'bosnia and herzeg': 'bosnia and herzegovina',
 			// South Korea - FIVB uses "Korea"
 			'republic of korea': 'korea',
 			'south korea': 'korea',
-			'korea, republic of': 'korea',
-			's. korea': 'korea',
+			'korea republic of': 'korea',
+			's korea': 'korea',
 			// North Korea - FIVB uses "DPR Korea"  
 			'north korea': 'dpr korea',
-			"korea, democratic people's republic of": 'dpr korea',
+			'korea democratic people s republic of': 'dpr korea',
 			'democratic peoples republic of korea': 'dpr korea',
-			"dem. people's republic of korea": 'dpr korea',
-			'n. korea': 'dpr korea',
+			'dem people s republic of korea': 'dpr korea',
+			'n korea': 'dpr korea',
 			// Others
 			'democratic republic of the congo': 'democratic republic of congo',
 			'republic of the congo': 'congo',
 			'united kingdom': 'great britain',
 			'england': 'great britain',
 			'czech republic': 'czechia',
-			'ivory coast': "côte d'ivoire",
+			'ivory coast': 'cote d ivoire',
 			'vietnam': 'viet nam',
 			'taiwan': 'chinese taipei',
 			'holland': 'netherlands',
 			'uae': 'united arab emirates',
 			'bosnia and herzegovina': 'bosnia and herzegovina',
-			'türkiye': 'turkey',
 			'turkiye': 'turkey',
 			// Prevent false matches
 			'oman': 'oman',
@@ -299,12 +313,389 @@ const RankingFetcher = (function() {
 	 */
 	async function getAllRankings(gender) {
 		const rankings = await fetchCurrentRankings(gender);
-		return rankings.map(r => ({
-			rank: r.rank,
-			teamName: r.federationName,
-			teamCode: iocToIso2(r.federationCode) || getCountryCode(r.federationName),
-			wrs: r.points
-		}));
+			return rankings.map(r => ({
+				rank: r.rank,
+				teamName: r.federationName,
+				teamCode: iocToIso2(r.federationCode) || getCountryCode(r.federationName),
+				teamCode3: String(r.federationCode || '').toUpperCase(),
+				flagUrl: r.flagUrl || '',
+				wrs: r.points
+			}));
+	}
+
+	const VNL_EVENT_REGEX = /(vnl|nations\s*league)/i;
+	const VNL_TEAMS_PAGE_BASE = 'https://en.volleyballworld.com/volleyball/competitions/volleyball-nations-league/teams';
+
+	function extractVnlPageSeasonYear(html) {
+		const titleMatch = String(html || '').match(/<title[^>]*>\s*VNL\s*(20\d{2})[^<]*<\/title>/i);
+		if (titleMatch) {
+			const year = Number(titleMatch[1]);
+			if (Number.isInteger(year)) return year;
+		}
+
+		const fallbackMatch = String(html || '').match(/\bVNL\s*(20\d{2})\b/i);
+		if (!fallbackMatch) return null;
+		const fallbackYear = Number(fallbackMatch[1]);
+		return Number.isInteger(fallbackYear) ? fallbackYear : null;
+	}
+
+	function dedupeTeams(teams) {
+		const map = new Map();
+		teams.forEach(team => {
+			const code = String(team?.federationCode || '').toUpperCase();
+			const name = String(team?.federationName || '').trim();
+			if (!name || !code) return;
+			map.set(code, {
+				federationName: name,
+				federationCode: code
+			});
+		});
+		return Array.from(map.values());
+	}
+
+	function parseVnlTeamsFromHtml(html, gender) {
+		const parsedTeams = [];
+		if (!html) return parsedTeams;
+
+		if (typeof DOMParser !== 'undefined') {
+			const parser = new DOMParser();
+			const doc = parser.parseFromString(html, 'text/html');
+			const selector = `a[href*="/teams/${gender}/"][href*="/schedule/"]`;
+			const cards = doc.querySelectorAll(selector);
+
+			cards.forEach(card => {
+				const nameNode = card.querySelector('.vbw-mu__team__name:not(.vbw-mu__team__name--abbr)');
+				const codeNode = card.querySelector('.vbw-mu__team__name--abbr');
+				const federationName = String(nameNode?.textContent || card.getAttribute('alt') || '').trim();
+				const federationCode = String(codeNode?.textContent || '').trim().toUpperCase();
+
+				if (federationName && federationCode) {
+					parsedTeams.push({ federationName, federationCode });
+				}
+			});
+		}
+
+		if (!parsedTeams.length) {
+			const fallbackRegex = new RegExp(`Volleyball\\s+team\\s+([^\"<]+?)\\s+flag[\\s\\S]*?teams/${gender}/\\d+/schedule/[\\s\\S]*?vbw-mu__team__name--abbr[\\s\\S]*?>([A-Z]{3})<`, 'gi');
+			let match;
+			while ((match = fallbackRegex.exec(html)) !== null) {
+				parsedTeams.push({
+					federationName: String(match[1] || '').trim(),
+					federationCode: String(match[2] || '').trim().toUpperCase()
+				});
+			}
+		}
+
+		return dedupeTeams(parsedTeams);
+	}
+
+	async function fetchVnlTeamsFromCompetitionPage(gender) {
+		try {
+			const response = await fetch(`${VNL_TEAMS_PAGE_BASE}/${gender}/`);
+			if (!response.ok) {
+				throw new Error(`HTTP ${response.status}`);
+			}
+
+			const html = await response.text();
+			const teams = parseVnlTeamsFromHtml(html, gender);
+			if (!teams.length) return null;
+
+			return {
+				seasonYear: extractVnlPageSeasonYear(html) || new Date().getFullYear(),
+				teams
+			};
+		} catch (error) {
+			console.warn(`Unable to fetch VNL teams page for ${gender}:`, error);
+			return null;
+		}
+	}
+
+	function getVnlSeasonYear(match) {
+		const eventName = String(match?.eventName || match?.event || '');
+		const eventYearMatch = eventName.match(/\b(20\d{2})\b/);
+		if (eventYearMatch) {
+			const eventYear = Number(eventYearMatch[1]);
+			if (Number.isInteger(eventYear)) {
+				return eventYear;
+			}
+		}
+
+		const rawDate = match?.localDate || match?.date;
+		if (!rawDate) return null;
+
+		const parsed = new Date(rawDate);
+		if (Number.isNaN(parsed.getTime())) return null;
+
+		return parsed.getUTCFullYear();
+	}
+
+	function getTeamKey(team) {
+		const code = String(team?.federationCode || '').toUpperCase();
+		if (code) return code;
+		return normalizeCountryName(String(team?.federationName || ''));
+	}
+
+	function pickSeasonYear(availableYears, requestedYear) {
+		const years = [...availableYears]
+			.filter(year => Number.isInteger(year))
+			.sort((a, b) => a - b);
+
+		if (!years.length) return null;
+		if (years.includes(requestedYear)) return requestedYear;
+
+		const previousOrCurrent = years.filter(year => year <= requestedYear);
+		if (previousOrCurrent.length) {
+			return previousOrCurrent[previousOrCurrent.length - 1];
+		}
+
+		return years[years.length - 1];
+	}
+
+	function stripTeamKey(team) {
+		if (!team) return null;
+		const clone = { ...team };
+		delete clone.teamKey;
+		return clone;
+	}
+
+	function buildTeamRecord(team, seasonYear, vnlMatchCount = 0) {
+		return {
+			teamKey: getTeamKey(team),
+			rank: team.rank,
+			federationName: team.federationName,
+			federationCode: String(team.federationCode || '').toUpperCase(),
+			teamCode2: iocToIso2(team.federationCode) || getCountryCode(team.federationName),
+			points: team.points,
+			confederationName: team.confederationName || '',
+			vnlMatchCount,
+			seasonYear
+		};
+	}
+
+	/**
+	 * Build a year-aware VNL snapshot for current season and transitions.
+	 * @param {string} gender - 'men' or 'women'
+	 * @param {{year?: number}} [options] - preferred season year
+	 * @returns {Promise<Object>} season snapshot with teams/newcomers/relegated
+	 */
+	async function getVnlSeasonSnapshot(gender, options = {}) {
+		const rankings = await fetchCurrentRankings(gender);
+		const requestedYear = Number.isInteger(Number(options?.year))
+			? Number(options.year)
+			: new Date().getFullYear();
+
+		const yearBuckets = new Map();
+		const availableYears = new Set();
+		const rankingByCode = new Map();
+		const rankingByName = new Map();
+
+		rankings.forEach(team => {
+			const teamCode = String(team.federationCode || '').toUpperCase();
+			if (teamCode) rankingByCode.set(teamCode, team);
+			const normalizedName = normalizeCountryName(String(team.federationName || ''));
+			if (normalizedName) rankingByName.set(normalizedName, team);
+
+			const matches = Array.isArray(team.teamMatches) ? team.teamMatches : [];
+			if (!matches.length) return;
+
+			const perYearCount = new Map();
+
+			matches.forEach(match => {
+				const eventName = String(match?.eventName || match?.event || '');
+				if (!VNL_EVENT_REGEX.test(eventName)) return;
+
+				const seasonYear = getVnlSeasonYear(match);
+				if (!Number.isInteger(seasonYear)) return;
+
+				availableYears.add(seasonYear);
+				perYearCount.set(seasonYear, (perYearCount.get(seasonYear) || 0) + 1);
+			});
+
+			perYearCount.forEach((vnlMatchCount, seasonYear) => {
+				if (!yearBuckets.has(seasonYear)) {
+					yearBuckets.set(seasonYear, new Map());
+				}
+
+				const record = buildTeamRecord(team, seasonYear, vnlMatchCount);
+				yearBuckets.get(seasonYear).set(record.teamKey, record);
+			});
+		});
+
+		const competitionSnapshot = await fetchVnlTeamsFromCompetitionPage(gender);
+		if (competitionSnapshot?.teams?.length) {
+			const competitionYear = Number.isInteger(Number(competitionSnapshot.seasonYear))
+				? Number(competitionSnapshot.seasonYear)
+				: requestedYear;
+			const competitionBucket = new Map();
+
+			competitionSnapshot.teams.forEach(teamFromPage => {
+				const code = String(teamFromPage.federationCode || '').toUpperCase();
+				const name = String(teamFromPage.federationName || '').trim();
+				const rankingTeam = (code && rankingByCode.get(code))
+					|| rankingByName.get(normalizeCountryName(name));
+
+				const mergedTeam = rankingTeam || {
+					rank: null,
+					federationName: name,
+					federationCode: code,
+					points: null,
+					confederationName: ''
+				};
+
+				const matchCount = Array.isArray(rankingTeam?.teamMatches)
+					? rankingTeam.teamMatches.filter(match => {
+						const eventName = String(match?.eventName || match?.event || '');
+						return VNL_EVENT_REGEX.test(eventName) && getVnlSeasonYear(match) === competitionYear;
+					}).length
+					: 0;
+
+				const teamRecord = buildTeamRecord(mergedTeam, competitionYear, matchCount);
+				if (!teamRecord.federationCode && code) {
+					teamRecord.federationCode = code;
+					teamRecord.teamKey = getTeamKey(teamRecord);
+				}
+				if (!teamRecord.teamCode2) {
+					teamRecord.teamCode2 = iocToIso2(teamRecord.federationCode) || getCountryCode(teamRecord.federationName);
+				}
+				competitionBucket.set(teamRecord.teamKey, teamRecord);
+			});
+
+			const allYears = Array.from(new Set([...availableYears, competitionYear])).sort((a, b) => a - b);
+			const previousSeasonYear = allYears.filter(year => year < competitionYear).slice(-1)[0] || null;
+			const previousBucket = previousSeasonYear ? (yearBuckets.get(previousSeasonYear) || new Map()) : new Map();
+			const currentKeys = new Set(competitionBucket.keys());
+			const previousKeys = new Set(previousBucket.keys());
+
+			const teams = Array.from(competitionBucket.values())
+				.sort((a, b) => {
+					const rankA = Number(a.rank) || 999;
+					const rankB = Number(b.rank) || 999;
+					if (rankA !== rankB) return rankA - rankB;
+					return String(a.federationName || '').localeCompare(String(b.federationName || ''));
+				})
+				.map(stripTeamKey);
+
+			const newcomerTeams = Array.from(competitionBucket.values())
+				.filter(team => !previousKeys.has(team.teamKey))
+				.sort((a, b) => (Number(a.rank) || 999) - (Number(b.rank) || 999))
+				.map(stripTeamKey);
+
+			const relegatedTeams = Array.from(previousBucket.values())
+				.filter(team => !currentKeys.has(team.teamKey))
+				.sort((a, b) => {
+					const rankA = Number(a.rank) || 999;
+					const rankB = Number(b.rank) || 999;
+					if (rankA !== rankB) return rankA - rankB;
+					return String(a.federationName || '').localeCompare(String(b.federationName || ''));
+				})
+				.map(stripTeamKey);
+
+			return {
+				requestedYear,
+				seasonYear: competitionYear,
+				previousSeasonYear,
+				isFallbackYear: competitionYear !== requestedYear,
+				availableYears: allYears,
+				teams,
+				newcomerTeams,
+				relegatedTeams
+			};
+		}
+
+		const sortedYears = Array.from(availableYears).sort((a, b) => a - b);
+		const seasonYear = pickSeasonYear(sortedYears, requestedYear);
+
+		if (!seasonYear) {
+			return {
+				requestedYear,
+				seasonYear: requestedYear,
+				previousSeasonYear: null,
+				isFallbackYear: false,
+				availableYears: [],
+				teams: [],
+				newcomerTeams: [],
+				relegatedTeams: []
+			};
+		}
+
+		const previousSeasonYear = sortedYears.filter(year => year < seasonYear).slice(-1)[0] || null;
+		const currentBucket = yearBuckets.get(seasonYear) || new Map();
+		const previousBucket = previousSeasonYear ? (yearBuckets.get(previousSeasonYear) || new Map()) : new Map();
+
+		const currentKeys = new Set(currentBucket.keys());
+		const previousKeys = new Set(previousBucket.keys());
+
+		const teams = Array.from(currentBucket.values())
+			.sort((a, b) => (Number(a.rank) || 999) - (Number(b.rank) || 999))
+			.map(stripTeamKey);
+
+		const newcomerTeams = Array.from(currentBucket.values())
+			.filter(team => !previousKeys.has(team.teamKey))
+			.sort((a, b) => (Number(a.rank) || 999) - (Number(b.rank) || 999))
+			.map(stripTeamKey);
+
+		const relegatedTeams = Array.from(previousBucket.values())
+			.filter(team => !currentKeys.has(team.teamKey))
+			.sort((a, b) => {
+				const rankA = Number(a.rank) || 999;
+				const rankB = Number(b.rank) || 999;
+				if (rankA !== rankB) return rankA - rankB;
+				return String(a.federationName || '').localeCompare(String(b.federationName || ''));
+			})
+			.map(stripTeamKey);
+
+		return {
+			requestedYear,
+			seasonYear,
+			previousSeasonYear,
+			isFallbackYear: seasonYear !== requestedYear,
+			availableYears: sortedYears,
+			teams,
+			newcomerTeams,
+			relegatedTeams
+		};
+	}
+
+	/**
+	 * Fetch current VNL teams from the live ranking API.
+	 * Teams are detected for a single season year (requested or latest available).
+	 * @param {string} gender - 'men' or 'women'
+	 * @param {{year?: number}} [options] - preferred season year
+	 * @returns {Promise<Array>} VNL teams with ranking metadata
+	 */
+	async function getCurrentVnlTeams(gender, options = {}) {
+		const snapshot = await getVnlSeasonSnapshot(gender, options);
+		return snapshot.teams || [];
+	}
+
+	/**
+	 * Get tournament teams from API match events.
+	 * @param {string} gender - 'men' or 'women'
+	 * @param {string} tournament - currently supports 'vnl'
+	 * @returns {Promise<Array<string>>} Unique federation names
+	 */
+	async function getTournamentTeams(gender, tournament = 'vnl') {
+		if (tournament === 'vnl') {
+			const vnlTeams = await getCurrentVnlTeams(gender);
+			return vnlTeams.map(team => team.federationName).filter(Boolean);
+		}
+
+		const rankings = await fetchCurrentRankings(gender);
+		const teams = new Set();
+		const tournamentRegex = new RegExp(tournament, 'i');
+
+		rankings.forEach(team => {
+			if (!Array.isArray(team.pointsProgression)) return;
+			const hasTournamentMatch = team.pointsProgression.some(match => {
+				const eventName = String(match?.event || '');
+				return tournamentRegex.test(eventName);
+			});
+			if (hasTournamentMatch && team.federationName) {
+				teams.add(team.federationName);
+			}
+		});
+
+		return Array.from(teams);
 	}
 	
 	/**
@@ -458,6 +849,9 @@ const RankingFetcher = (function() {
 		getCountryRanking,
 		getTopRankings,
 		getAllRankings,
+		getVnlSeasonSnapshot,
+		getCurrentVnlTeams,
+		getTournamentTeams,
 		formatRankingDisplay,
 		clearCache,
 		getCachedRankings

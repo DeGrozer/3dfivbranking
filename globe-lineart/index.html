@@ -5,6 +5,9 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>Volleyball World Rankings Globe</title>
 	<link rel="icon" href="https://fonts.gstatic.com/s/e/notoemoji/latest/1f3d0/emoji.svg" type="image/svg+xml">
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
 	<script src="https://cdn.tailwindcss.com"></script>
 	<script>
 		tailwind.config = {
@@ -32,19 +35,57 @@
 	<link rel="stylesheet" href="css/style.css">
 </head>
 <body class="women min-h-screen m-0 p-0 font-sans antialiased transition-colors duration-600 ease-out">
+	<div id="startupOverlay" class="startup-overlay" aria-hidden="false">
+		<canvas id="startupScene" class="startup-scene" aria-hidden="true"></canvas>
+		<div class="startup-copy">
+			<h2>VOLLEYBALL WORLD RANKING</h2>
+			<p>Loading globe experience...</p>
+			<div class="startup-progress"><span></span></div>
+		</div>
+	</div>
+
+	<div id="releaseNotesModal" class="release-notes-modal hidden" aria-hidden="true">
+		<div class="release-notes-shell" role="dialog" aria-label="Patch notes">
+			<div class="release-notes-head">
+				<h3>Patch Notes</h3>
+				<button id="releaseNotesClose" class="release-notes-close" aria-label="Close patch notes">
+					<i class="fa-solid fa-xmark" aria-hidden="true"></i>
+				</button>
+			</div>
+			<div class="release-notes-body">
+				<p>Current-season VNL teams now follow official competition roster pages.</p>
+				<p>VNL mode tracks newcomers, relegated teams, and defending champions.</p>
+				<p>Podium colors now highlight world ranking tiers for competition view.</p>
+			</div>
+		</div>
+	</div>
+
 	<!-- Header Title -->
 	<div id="titleWrap" class="fixed top-3 sm:top-6 left-1/2 transform -translate-x-1/2 z-[100] text-center w-[calc(100vw-2rem)] sm:w-auto cursor-pointer sm:cursor-default select-none">
 		<h1 class="text-white text-lg sm:text-2xl font-bold tracking-wide leading-tight">Senior Volleyball World Ranking</h1>
-		<p id="rankingDate" class="text-gray-400 text-xs sm:text-sm mt-1">as of January 6, 2026</p>
+		<p id="rankingDate" class="text-gray-400 text-xs sm:text-sm mt-1">as of: January 6, 2026</p>
 	</div>
 	
 	<!-- Gender Toggle - Upper Right -->
-	<div id="controlsWrap" class="fixed top-[74px] sm:top-6 left-1/2 sm:left-auto sm:right-8 transform -translate-x-1/2 sm:translate-x-0 z-[100] flex gap-2 w-[calc(100vw-1.5rem)] sm:w-auto justify-center">
-		<button id="btnLeaderboard" class="bg-slate-700/50 hover:bg-slate-600/70 text-white px-4 py-2 rounded-xl text-sm font-semibold cursor-pointer transition-all duration-200 border border-white/15 backdrop-blur-sm">
-			Rankings
+	<div id="controlsWrap" class="fixed top-[74px] sm:top-6 left-1/2 sm:left-auto sm:right-8 transform -translate-x-1/2 sm:translate-x-0 z-[100] flex gap-2 w-[calc(100vw-1.5rem)] sm:w-auto justify-center items-center flex-wrap sm:flex-nowrap">
+		<div class="gender-toggle" role="tablist" aria-label="Gender selector">
+			<button id="btnWomen" class="gender-btn active" type="button" aria-pressed="true" aria-label="Women rankings">
+				<i class="fa-solid fa-venus gender-icon" aria-hidden="true"></i>
+				<span class="gender-label">Women</span>
+			</button>
+			<button id="btnMen" class="gender-btn" type="button" aria-pressed="false" aria-label="Men rankings">
+				<i class="fa-solid fa-mars gender-icon" aria-hidden="true"></i>
+				<span class="gender-label">Men</span>
+			</button>
+		</div>
+		<button id="btnTournament" class="control-chip">
+			Tournament
 		</button>
-		<button id="btnWomen" class="gender-btn active bg-pink-600 hover:bg-pink-700 text-white px-4 sm:px-5 py-2 rounded-lg text-xs sm:text-sm font-semibold cursor-pointer transition-all duration-300 shadow-lg whitespace-nowrap">Women</button>
-		<button id="btnMen" class="gender-btn bg-gray-600 hover:bg-blue-600 text-white px-4 sm:px-5 py-2 rounded-lg text-xs sm:text-sm font-semibold cursor-pointer transition-all duration-300 shadow-lg whitespace-nowrap">Men</button>
+		<button id="btnLeaderboard" class="control-chip control-chip-rank" aria-label="Open standings">
+			<span class="rank-ball" aria-hidden="true"><i class="fa-solid fa-volleyball" aria-hidden="true"></i></span>
+			<span>Rankings</span>
+			<span class="rank-hover-label" aria-hidden="true">Standings</span>
+		</button>
 	</div>
 
 	<!-- Info Button - Lower Left -->
@@ -56,13 +97,13 @@
 	
 	<!-- Zoom Controls -->
 	<div id="zoomControlsWrap" class="fixed bottom-4 sm:bottom-8 right-3 sm:right-8 z-[100] flex flex-col gap-2">
-		<button id="zoomIn" class="zoom-btn" aria-label="Zoom in">+</button>
-		<button id="zoomOut" class="zoom-btn" aria-label="Zoom out">−</button>
+		<button id="zoomIn" class="zoom-btn" aria-label="Zoom in"><i class="fa-solid fa-plus" aria-hidden="true"></i></button>
+		<button id="zoomOut" class="zoom-btn" aria-label="Zoom out"><i class="fa-solid fa-minus" aria-hidden="true"></i></button>
 	</div>
 	
 	<!-- Country Information Card -->
-	<div class="country-card fixed top-[100px] left-6 w-[320px] bg-white rounded-xl shadow-2xl z-50 opacity-0 pointer-events-none transition-all duration-400 ease-out scale-90 overflow-hidden">
-		<button class="close-btn absolute top-2 right-2 bg-gray-100 border-0 text-gray-600 text-base w-6 h-6 rounded-md cursor-pointer transition-all duration-200 flex items-center justify-center leading-none z-10 hover:bg-gray-200 hover:text-gray-800" aria-label="Close">&times;</button>
+	<div class="country-card fixed top-[100px] left-6 w-[332px] bg-white rounded-[22px] shadow-2xl z-50 opacity-0 pointer-events-none transition-all duration-400 ease-out scale-90 overflow-hidden">
+		<button class="close-btn absolute top-3 right-3 border-0 text-slate-500 text-base w-8 h-8 rounded-xl cursor-pointer transition-all duration-200 flex items-center justify-center leading-none z-10" aria-label="Close"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
 		
 		<!-- Header with flag and name -->
 		<div class="card-header flex items-center gap-3 p-4 border-b border-gray-100">
@@ -76,16 +117,18 @@
 		<!-- Ranking stats -->
 		<div class="card-body p-4"></div>
 	</div>
+
+	<div id="vnlStatusPopup" class="vnl-status-popup" aria-hidden="true"></div>
 	
 	<!-- Leaderboard Modal -->
 	<div id="leaderboardModal" class="fixed inset-0 bg-black/60 z-[200] opacity-0 pointer-events-none transition-opacity duration-200 flex items-center justify-center p-1 sm:p-0">
-		<div class="leaderboard-shell bg-gray-900 rounded-md shadow-2xl w-[calc(100vw-0.5rem)] sm:w-[460px] max-h-[90vh] sm:max-h-[78vh] overflow-hidden border border-slate-700/60">
-			<div class="leaderboard-head flex items-center justify-between px-5 py-4 border-b border-slate-700/50">
+		<div class="leaderboard-shell bg-gray-900 rounded-3xl shadow-2xl w-[calc(100vw-0.75rem)] sm:w-[480px] max-h-[90vh] sm:max-h-[78vh] overflow-hidden">
+			<div class="leaderboard-head flex items-center justify-between px-5 py-4">
 				<h2 id="leaderboardTitle" class="text-base font-semibold text-white tracking-tight">World Rankings</h2>
-				<button id="closeLeaderboard" class="text-slate-300 hover:text-white text-xl leading-none w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-700/60 transition-colors">&times;</button>
+				<button id="closeLeaderboard" class="lb-close-btn" aria-label="Close rankings"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
 			</div>
-			<div class="px-5 py-3 border-b border-slate-700/50 bg-slate-900/60">
-				<input type="text" id="leaderboardSearch" placeholder="Search country..." class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white placeholder-slate-400 focus:outline-none focus:border-slate-500 transition-colors">
+			<div class="leaderboard-search-wrap px-5 py-3">
+				<input type="text" id="leaderboardSearch" placeholder="Search country..." class="w-full rounded-2xl px-4 py-3 text-sm transition-colors">
 			</div>
 			<div id="leaderboardContent" class="leaderboard-content overflow-y-auto max-h-[calc(80vh-136px)] sm:max-h-[calc(75vh-116px)]">
 				<div class="text-center text-gray-500 py-8 text-sm">Loading...</div>
@@ -93,20 +136,44 @@
 		</div>
 	</div>
 
+	<!-- Tournament Modal -->
+	<div id="tournamentModal" class="fixed inset-0 bg-black/60 z-[220] opacity-0 pointer-events-none transition-opacity duration-200 flex items-center justify-center p-3 sm:p-6">
+		<div class="tournament-shell w-[calc(100vw-1rem)] sm:w-[460px] max-h-[90vh] overflow-hidden">
+			<div class="tournament-head">
+				<h3 class="text-base font-semibold tracking-tight flex items-center gap-2 text-white">
+					<i class="fa-solid fa-trophy" aria-hidden="true"></i>
+					<span id="tournamentTitle">Choose Tournament</span>
+				</h3>
+				<button id="closeTournament" class="lb-close-btn" aria-label="Close tournament modal"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+			</div>
+			<div id="tournamentContent" class="tournament-content"></div>
+			<div class="tournament-actions">
+				<button id="tournamentOpenCountry" class="tournament-btn">
+					<i class="fa-solid fa-earth-asia" aria-hidden="true"></i>
+					<span>Open Team on Globe</span>
+				</button>
+			</div>
+		</div>
+	</div>
+
 	<!-- Info Modal -->
 	<div id="infoModal" class="fixed inset-0 bg-black/60 z-[210] opacity-0 pointer-events-none transition-opacity duration-200 flex items-center justify-center p-4">
-		<div class="info-shell w-[calc(100vw-1.5rem)] sm:w-[420px] bg-white text-slate-900 rounded-lg shadow-2xl border border-slate-200 overflow-hidden">
+		<div class="info-shell w-[calc(100vw-1.5rem)] sm:w-[460px] bg-white text-slate-900 rounded-[22px] shadow-2xl overflow-hidden">
 			<div class="flex items-center justify-between px-5 py-4 border-b border-slate-200">
 				<h3 class="text-base font-semibold tracking-tight flex items-center gap-2">
 					<i class="fa-solid fa-circle-info text-slate-600" aria-hidden="true"></i>
-					<span>Project Info</span>
+					<span>About This Project</span>
 				</h3>
 				<button id="closeInfo" class="text-slate-500 hover:text-slate-800 text-base leading-none w-7 h-7 flex items-center justify-center rounded-md hover:bg-slate-100 transition-colors" aria-label="Close info modal">
 					<i class="fa-solid fa-xmark" aria-hidden="true"></i>
 				</button>
 			</div>
 			<div class="px-5 py-4 text-sm leading-relaxed info-modal-body">
-				<p class="info-line"><i class="fa-solid fa-database" aria-hidden="true"></i><span>Created using FIVB Data</span></p>
+				<p class="info-line"><i class="fa-solid fa-volleyball" aria-hidden="true"></i><span>Fan-made 3D interactive FIVB world ranking experience.</span></p>
+				<p class="info-line"><i class="fa-solid fa-database" aria-hidden="true"></i><span>Ranking list is sourced from official FIVB ranking data endpoints.</span></p>
+				<p class="info-line"><i class="fa-solid fa-copyright" aria-hidden="true"></i><span>Credits: FIVB / Volleyball World for ranking and federation data.</span></p>
+				<p class="info-line"><i class="fa-solid fa-calendar-days" aria-hidden="true"></i><span>Upcoming focus event: Volleyball Nations League (VNL).</span></p>
+				<button id="openReleaseNotesFromInfo" type="button" class="info-notes-btn">Patch Notes</button>
 				<p class="info-line"><i class="fa-solid fa-user" aria-hidden="true"></i><span><strong>Created by:</strong> Jan Andrew R. Barte</span></p>
 				<p class="info-line"><i class="fa-brands fa-github" aria-hidden="true"></i><span><strong>GitHub:</strong> <a href="https://github.com/DeGrozer" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-700 underline">github.com/DeGrozer</a></span></p>
 			</div>
@@ -120,6 +187,7 @@
 	<!-- Dependencies -->
 	<script src="https://d3js.org/d3.v7.min.js"></script>
 	<script src="https://unpkg.com/topojson-client@3/dist/topojson-client.min.js"></script>
+	<script src="https://unpkg.com/three@0.161.0/build/three.min.js"></script>
 	
 	<!-- Application Scripts -->
 	<script src="config/api.js"></script>
