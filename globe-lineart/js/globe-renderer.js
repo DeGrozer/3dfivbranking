@@ -338,7 +338,7 @@ const GlobeRenderer = (function() {
 		const anchor = getMainlandAnchor(hoveredVnlFeature);
 		if (!anchor) return;
 		const x = anchor[0];
-		const y = Math.max(26, anchor[1] - 44);
+		const y = Math.max(24, anchor[1] - 34);
 		if (!Number.isFinite(x) || !Number.isFinite(y)) return;
 
 		const badge = vnlBadgeGroup.append('g')
@@ -346,31 +346,25 @@ const GlobeRenderer = (function() {
 			.attr('pointer-events', 'none');
 
 		badge.append('rect')
-			.attr('x', -34)
-			.attr('y', -22)
-			.attr('width', 68)
-			.attr('height', 38)
+			.attr('x', -33)
+			.attr('y', -17)
+			.attr('width', 66)
+			.attr('height', 34)
 			.attr('rx', 12)
 			.attr('fill', '#1f4aa8')
 			.attr('stroke', '#0f2a52')
-			.attr('stroke-width', 2.2);
+			.attr('stroke-width', 2);
 
 		badge.append('text')
 			.attr('text-anchor', 'middle')
 			.attr('dominant-baseline', 'central')
 			.attr('dy', '0.1em')
-			.attr('font-size', 22)
+			.attr('font-size', 21)
 			.attr('font-weight', 400)
 			.attr('font-family', '"VNL", "Barlow Condensed", sans-serif')
 			.attr('letter-spacing', '0.55px')
 			.attr('fill', '#facc15')
 			.text('VNL');
-
-		badge.append('path')
-			.attr('d', 'M0,16 L-7,30 L7,30 Z')
-			.attr('fill', '#1f4aa8')
-			.attr('stroke', '#0f2a52')
-			.attr('stroke-width', 2);
 
 		vnlBadgeGroup.raise();
 	}

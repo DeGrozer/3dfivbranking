@@ -144,9 +144,9 @@
 
 			const payload = await response.json();
 			const dateValue = payload?.date || payload?.updatedDate || payload?.teams?.[0]?.updatedDate;
-			asOfEl.textContent = `As of: ${formatAsOfDate(dateValue)}`;
+			asOfEl.textContent = formatAsOfDate(dateValue);
 		} catch (error) {
-			asOfEl.textContent = `As of: ${formatAsOfDate(null)}`;
+			asOfEl.textContent = formatAsOfDate(null);
 		}
 	}
 

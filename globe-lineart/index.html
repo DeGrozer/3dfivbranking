@@ -57,8 +57,8 @@
 		<p id="rankingDate" class="text-gray-400 text-xs sm:text-sm mt-1">as of: January 6, 2026</p>
 	</div>
 	
-	<!-- Gender Toggle - Upper Right -->
-	<div id="controlsWrap" class="fixed top-[74px] sm:top-6 left-1/2 sm:left-auto sm:right-8 transform -translate-x-1/2 sm:translate-x-0 z-[100] flex gap-2 w-[calc(100vw-1.5rem)] sm:w-auto justify-center items-center flex-wrap sm:flex-nowrap">
+	<!-- Gender Toggle -->
+	<div id="controlsWrap" class="fixed top-[74px] sm:top-6 left-1/2 sm:left-auto sm:right-8 transform -translate-x-1/2 sm:translate-x-0 z-[100] flex gap-2 w-[calc(100vw-1.5rem)] sm:w-auto justify-center items-center">
 		<div class="gender-toggle" role="tablist" aria-label="Gender selector">
 			<button id="btnWomen" class="gender-btn active" type="button" aria-pressed="true" aria-label="Women rankings">
 				<i class="fa-solid fa-venus gender-icon" aria-hidden="true"></i>
@@ -69,14 +69,31 @@
 				<span class="gender-label">Men</span>
 			</button>
 		</div>
+	</div>
+
+	<!-- Tournament + Rankings Rail -->
+	<div id="modeRail" class="fixed top-[126px] left-1/2 transform -translate-x-1/2 z-[100] flex gap-2 w-[calc(100vw-1.5rem)] justify-center items-center sm:w-auto sm:left-auto sm:right-8 sm:translate-x-0">
 		<button id="btnTournament" class="control-chip control-chip-tour" aria-label="Open tournament filter">
-			<span class="control-chip-icon" aria-hidden="true"><i class="fa-solid fa-trophy" aria-hidden="true"></i></span>
-			<span>Tournament</span>
+			<canvas class="control-chip-scene" aria-hidden="true"></canvas>
+			<span class="control-chip-orbit" aria-hidden="true">
+				<i class="fa-solid fa-trophy orbit-icon orbit-icon-top icon-podium"></i>
+				<i class="fa-solid fa-person-running orbit-icon orbit-icon-left icon-spike"></i>
+				<i class="fa-solid fa-volleyball orbit-icon orbit-icon-right icon-ball"></i>
+			</span>
+			<i class="fa-solid fa-filter control-chip-glyph control-chip-filter-icon" aria-hidden="true"></i>
+			<span id="btnTournamentLabel">Tournament Filter</span>
+			<span id="btnTournamentClear" class="control-chip-clear" aria-hidden="true">
+				<i class="fa-solid fa-xmark"></i>
+			</span>
 		</button>
 		<button id="btnLeaderboard" class="control-chip control-chip-rank" aria-label="Open standings">
-			<span class="control-chip-icon rank-ball" aria-hidden="true"><i class="fa-solid fa-medal" aria-hidden="true"></i></span>
+			<span class="control-chip-orbit" aria-hidden="true">
+				<i class="fa-solid fa-list-ol orbit-icon orbit-icon-top icon-board"></i>
+				<i class="fa-solid fa-medal orbit-icon orbit-icon-left icon-medal"></i>
+				<i class="fa-solid fa-chart-line orbit-icon orbit-icon-right icon-rank"></i>
+			</span>
+			<i class="fa-solid fa-medal control-chip-glyph rank-ball" aria-hidden="true"></i>
 			<span>Rankings</span>
-			<span class="rank-hover-label" aria-hidden="true">Podium</span>
 		</button>
 	</div>
 
