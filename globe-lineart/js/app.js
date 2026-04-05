@@ -27,11 +27,7 @@
 	}
 
 	function isVnlTournamentMode(type = activeTournamentType) {
-		return type === 'vnl' || type === 'vnl-newcomer';
-	}
-
-	function isVnlNewcomerFilter(type = activeTournamentType) {
-		return type === 'vnl-newcomer';
+		return type === 'vnl';
 	}
 
 	function disposeVnlStatusPopupAnimation() {
@@ -464,7 +460,7 @@
 		if (vnlStatus?.status === 'newcomer') {
 			label = 'PROMOTED TEAM';
 			toneClass = 'is-newcomer';
-			ledDirection = 'right';
+			ledDirection = '';
 		} else if (vnlStatus?.status === 'relegated') {
 			label = 'RELEGATED TEAM';
 			toneClass = 'is-relegated';
@@ -1142,7 +1138,6 @@
 
 		const normalized = normalizeTeamName(countryName);
 		const state = VNL_SEASON_STATE[currentGender] || createEmptyVnlSeasonState();
-		const newcomerOnly = isVnlNewcomerFilter();
 		const teamRecord = state.teamByNormalizedName instanceof Map
 			? state.teamByNormalizedName.get(normalized)
 			: null;
@@ -1153,10 +1148,6 @@
 
 		if (state.newcomerSet.has(normalized)) {
 			return createStatusPayload(state, 'newcomer', isDefendingChampion);
-		}
-
-		if (newcomerOnly) {
-			return null;
 		}
 
 		if (state.activeSet.has(normalized)) {
@@ -1210,17 +1201,12 @@
 	function isCountryInActiveTournament(countryName) {
 		if (!isVnlTournamentMode()) return false;
 		const info = getVnlCountryInfo(countryName);
-		if (!info) return false;
-		if (isVnlNewcomerFilter()) {
-			return info.status === 'newcomer';
-		}
-		return true;
+		return !!info;
 	}
 
 	function getTournamentLabel(type) {
 		switch (type) {
 			case 'vnl': return 'Volleyball Nations League';
-			case 'vnl-newcomer': return 'VNL Newcomers';
 			case 'world': return 'World Championship';
 			case 'eurovolley': return 'EuroVolley';
 			case 'olympics': return 'Olympics';
@@ -1523,7 +1509,7 @@
 
 	async function applyTournamentSelection(type) {
 		const normalizedType = String(type || '').toLowerCase();
-		if (normalizedType && normalizedType !== 'all' && normalizedType !== 'vnl' && normalizedType !== 'vnl-newcomer') {
+		if (normalizedType && normalizedType !== 'all' && normalizedType !== 'vnl') {
 			return;
 		}
 
@@ -1693,10 +1679,6 @@
 					<i class="fa-solid fa-volleyball"></i>
 					<span>VNL</span>
 				</button>
-				<button type="button" class="tournament-select-btn tournament-select-newcomer ${activeTournamentType === 'vnl-newcomer' ? 'selected' : ''}" data-tournament-select="vnl-newcomer">
-					<i class="fa-solid fa-arrow-up"></i>
-					<span>VNL Newcomers</span>
-				</button>
 				<button type="button" class="tournament-select-btn is-under-construction" data-tournament-select="world" data-under-construction="1" disabled>
 					<span class="tournament-construction-tape">Under Construction</span>
 					<i class="fa-solid fa-earth-europe"></i>
@@ -1782,11 +1764,7 @@
 			const displayRankings = isVnlTournamentMode(activeTournamentType)
 				? rankings.filter(team => {
 					const vnlStatus = getVnlCountryStatus(team.teamName || '');
-					if (!vnlStatus) return false;
-					if (isVnlNewcomerFilter(activeTournamentType)) {
-						return vnlStatus.status === 'newcomer';
-					}
-					return true;
+					return !!vnlStatus;
 				})
 				: rankings;
 

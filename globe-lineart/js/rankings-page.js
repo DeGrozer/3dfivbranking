@@ -3,11 +3,7 @@
 	let currentTournament = '';
 
 	function isVnlFilterMode() {
-		return currentTournament === 'vnl' || currentTournament === 'vnl-newcomer';
-	}
-
-	function isVnlNewcomerMode() {
-		return currentTournament === 'vnl-newcomer';
+		return currentTournament === 'vnl';
 	}
 
 	const titleEl = document.getElementById('pageTitle');
@@ -22,7 +18,7 @@
 		const gender = params.get('gender');
 		const tournament = params.get('tournament');
 		currentGender = gender === 'men' ? 'men' : 'women';
-		currentTournament = (tournament === 'vnl' || tournament === 'vnl-newcomer') ? tournament : '';
+		currentTournament = tournament === 'vnl' ? 'vnl' : '';
 	}
 
 	function normalizeTeamName(name) {
@@ -59,12 +55,10 @@
 
 		try {
 			const snapshot = await RankingFetcher.getVnlSeasonSnapshot(currentGender, { year: new Date().getFullYear() });
-			const teams = isVnlNewcomerMode()
-				? [...(Array.isArray(snapshot?.newcomerTeams) ? snapshot.newcomerTeams : [])]
-				: [
-					...(Array.isArray(snapshot?.teams) ? snapshot.teams : []),
-					...(Array.isArray(snapshot?.relegatedTeams) ? snapshot.relegatedTeams : [])
-				];
+			const teams = [
+				...(Array.isArray(snapshot?.teams) ? snapshot.teams : []),
+				...(Array.isArray(snapshot?.relegatedTeams) ? snapshot.relegatedTeams : [])
+			];
 			if (!teams.length) return null;
 
 			return new Set(
@@ -111,9 +105,7 @@
 
 	function updateHeaderState() {
 		const isWomen = currentGender === 'women';
-		if (currentTournament === 'vnl-newcomer') {
-			titleEl.textContent = isWomen ? "Women's VNL Newcomers" : "Men's VNL Newcomers";
-		} else if (currentTournament === 'vnl') {
+		if (currentTournament === 'vnl') {
 			titleEl.textContent = isWomen ? "Women's VNL Teams" : "Men's VNL Teams";
 		} else {
 			titleEl.textContent = isWomen ? "Women's World Rankings" : "Men's World Rankings";
