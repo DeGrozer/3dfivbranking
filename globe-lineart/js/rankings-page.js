@@ -2,6 +2,14 @@
 	let currentGender = 'women';
 	let currentTournament = '';
 
+	function isVnlFilterMode() {
+		return currentTournament === 'vnl' || currentTournament === 'vnl-newcomer';
+	}
+
+	function isVnlNewcomerMode() {
+		return currentTournament === 'vnl-newcomer';
+	}
+
 	const titleEl = document.getElementById('pageTitle');
 	const womenTab = document.getElementById('womenTab');
 	const menTab = document.getElementById('menTab');
@@ -14,7 +22,7 @@
 		const gender = params.get('gender');
 		const tournament = params.get('tournament');
 		currentGender = gender === 'men' ? 'men' : 'women';
-		currentTournament = tournament === 'vnl' ? 'vnl' : '';
+		currentTournament = (tournament === 'vnl' || tournament === 'vnl-newcomer') ? tournament : '';
 	}
 
 	function normalizeTeamName(name) {
@@ -47,14 +55,16 @@
 	}
 
 	async function getTournamentFilterSet() {
-		if (currentTournament !== 'vnl') return null;
+		if (!isVnlFilterMode()) return null;
 
 		try {
 			const snapshot = await RankingFetcher.getVnlSeasonSnapshot(currentGender, { year: new Date().getFullYear() });
-			const teams = [
-				...(Array.isArray(snapshot?.teams) ? snapshot.teams : []),
-				...(Array.isArray(snapshot?.relegatedTeams) ? snapshot.relegatedTeams : [])
-			];
+			const teams = isVnlNewcomerMode()
+				? [...(Array.isArray(snapshot?.newcomerTeams) ? snapshot.newcomerTeams : [])]
+				: [
+					...(Array.isArray(snapshot?.teams) ? snapshot.teams : []),
+					...(Array.isArray(snapshot?.relegatedTeams) ? snapshot.relegatedTeams : [])
+				];
 			if (!teams.length) return null;
 
 			return new Set(
@@ -101,14 +111,18 @@
 
 	function updateHeaderState() {
 		const isWomen = currentGender === 'women';
-		titleEl.textContent = currentTournament === 'vnl'
-			? (isWomen ? "Women's VNL Teams" : "Men's VNL Teams")
-			: (isWomen ? "Women's World Rankings" : "Men's World Rankings");
+		if (currentTournament === 'vnl-newcomer') {
+			titleEl.textContent = isWomen ? "Women's VNL Newcomers" : "Men's VNL Newcomers";
+		} else if (currentTournament === 'vnl') {
+			titleEl.textContent = isWomen ? "Women's VNL Teams" : "Men's VNL Teams";
+		} else {
+			titleEl.textContent = isWomen ? "Women's World Rankings" : "Men's World Rankings";
+		}
 		womenTab.classList.toggle('active', isWomen);
 		menTab.classList.toggle('active', !isWomen);
 		womenTab.setAttribute('aria-selected', String(isWomen));
 		menTab.setAttribute('aria-selected', String(!isWomen));
-		document.body.classList.toggle('is-vnl-filter', currentTournament === 'vnl');
+		document.body.classList.toggle('is-vnl-filter', isVnlFilterMode());
 	}
 
 	function formatAsOfDate(value) {

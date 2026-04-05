@@ -26,6 +26,14 @@
 		document.body.classList.toggle('mobile-country-open', isMobileViewport() && isOpen);
 	}
 
+	function isVnlTournamentMode(type = activeTournamentType) {
+		return type === 'vnl' || type === 'vnl-newcomer';
+	}
+
+	function isVnlNewcomerFilter(type = activeTournamentType) {
+		return type === 'vnl-newcomer';
+	}
+
 	function disposeVnlStatusPopupAnimation() {
 		if (typeof vnlStatusPopupAnimationCleanup === 'function') {
 			vnlStatusPopupAnimationCleanup();
@@ -56,7 +64,7 @@
 
 	function scheduleVnlPreviewReset(card, vnlStatus) {
 		clearVnlCardPreviewTimer();
-		if (!card || !vnlStatus || activeTournamentType !== 'vnl') return;
+		if (!card || !vnlStatus || !isVnlTournamentMode()) return;
 		card.classList.remove('vnl-preview-static');
 
 		const topLed = card.querySelector('.card-top-vnl-led');
@@ -370,7 +378,7 @@
 	}
 
 	function buildVnlInlineStatus(vnlStatus, countryName, ranking) {
-		if (!vnlStatus || activeTournamentType !== 'vnl') return '';
+		if (!vnlStatus || !isVnlTournamentMode()) return '';
 
 		const safeRank = Number(ranking?.rank);
 		const previousEdition = getVnlPreviousEditionInfo(countryName, ranking, vnlStatus.seasonYear);
@@ -479,7 +487,7 @@
 	}
 
 	function renderVnlTopBanner(card, vnlStatus, countryName, ranking) {
-		if (!card || !vnlStatus || activeTournamentType !== 'vnl') {
+		if (!card || !vnlStatus || !isVnlTournamentMode()) {
 			clearChampionTopBanner(card);
 			return;
 		}
@@ -552,7 +560,7 @@
 	function showVnlStatusPopup(vnlStatus, countryName, ranking) {
 		const popup = document.getElementById('vnlStatusPopup');
 		if (!popup) return;
-		if (!vnlStatus || activeTournamentType !== 'vnl') {
+		if (!vnlStatus || !isVnlTournamentMode()) {
 			hideVnlStatusPopup();
 			return;
 		}
@@ -1130,10 +1138,11 @@
 	}
 
 	function getVnlCountryStatus(countryName) {
-		if (activeTournamentType !== 'vnl') return null;
+		if (!isVnlTournamentMode()) return null;
 
 		const normalized = normalizeTeamName(countryName);
 		const state = VNL_SEASON_STATE[currentGender] || createEmptyVnlSeasonState();
+		const newcomerOnly = isVnlNewcomerFilter();
 		const teamRecord = state.teamByNormalizedName instanceof Map
 			? state.teamByNormalizedName.get(normalized)
 			: null;
@@ -1144,6 +1153,10 @@
 
 		if (state.newcomerSet.has(normalized)) {
 			return createStatusPayload(state, 'newcomer', isDefendingChampion);
+		}
+
+		if (newcomerOnly) {
+			return null;
 		}
 
 		if (state.activeSet.has(normalized)) {
@@ -1195,13 +1208,19 @@
 	}
 
 	function isCountryInActiveTournament(countryName) {
-		if (activeTournamentType !== 'vnl') return false;
-		return !!getVnlCountryInfo(countryName);
+		if (!isVnlTournamentMode()) return false;
+		const info = getVnlCountryInfo(countryName);
+		if (!info) return false;
+		if (isVnlNewcomerFilter()) {
+			return info.status === 'newcomer';
+		}
+		return true;
 	}
 
 	function getTournamentLabel(type) {
 		switch (type) {
 			case 'vnl': return 'Volleyball Nations League';
+			case 'vnl-newcomer': return 'VNL Newcomers';
 			case 'world': return 'World Championship';
 			case 'eurovolley': return 'EuroVolley';
 			case 'olympics': return 'Olympics';
@@ -1215,7 +1234,7 @@
 	async function init() {
 		try {
 			window.getVnlBadgeInfo = getVnlCountryInfo;
-			window.isTournamentVnlModeEnabled = () => activeTournamentType === 'vnl';
+			window.isTournamentVnlModeEnabled = () => isVnlTournamentMode();
 			window.isCountryInActiveTournament = isCountryInActiveTournament;
 			
 			// Load world map data
@@ -1389,9 +1408,9 @@
 		hideTournamentModal();
 		GlobeRenderer.clearSelection();
 		window.getVnlBadgeInfo = getVnlCountryInfo;
-		window.isTournamentVnlModeEnabled = () => activeTournamentType === 'vnl';
+		window.isTournamentVnlModeEnabled = () => isVnlTournamentMode();
 		window.isCountryInActiveTournament = isCountryInActiveTournament;
-		if (activeTournamentType === 'vnl') {
+		if (isVnlTournamentMode()) {
 			void refreshVnlTeamsFromApi(currentGender).then(() => {
 				GlobeRenderer.refreshTournamentMarkers?.();
 			});
@@ -1504,12 +1523,12 @@
 
 	async function applyTournamentSelection(type) {
 		const normalizedType = String(type || '').toLowerCase();
-		if (normalizedType && normalizedType !== 'all' && normalizedType !== 'vnl') {
+		if (normalizedType && normalizedType !== 'all' && normalizedType !== 'vnl' && normalizedType !== 'vnl-newcomer') {
 			return;
 		}
 
 		activeTournamentType = normalizedType === 'all' ? '' : normalizedType;
-		if (activeTournamentType === 'vnl') {
+		if (isVnlTournamentMode(activeTournamentType)) {
 			await refreshVnlTeamsFromApi(currentGender);
 		} else {
 			hideVnlStatusPopup();
@@ -1520,14 +1539,14 @@
 				clearChampionTopBanner(activeCard);
 			}
 		}
-		document.body.classList.toggle('tournament-vnl', activeTournamentType === 'vnl');
+		document.body.classList.toggle('tournament-vnl', isVnlTournamentMode(activeTournamentType));
 		const btnTournament = document.getElementById('btnTournament');
 		if (btnTournament) {
 			btnTournament.classList.toggle('active', !!activeTournamentType);
 		}
 
 		window.getVnlBadgeInfo = getVnlCountryInfo;
-		window.isTournamentVnlModeEnabled = () => activeTournamentType === 'vnl';
+		window.isTournamentVnlModeEnabled = () => isVnlTournamentMode();
 		window.isCountryInActiveTournament = isCountryInActiveTournament;
 		if (lastSelectedCountryContext && document.querySelector('.country-card')?.classList.contains('show')) {
 			showCountryCard(
@@ -1652,7 +1671,8 @@
 		const content = document.getElementById('tournamentContent');
 		const title = document.getElementById('tournamentTitle');
 		const openCountryBtn = document.getElementById('tournamentOpenCountry');
-		const vnlSummary = getVnlSeasonSummary(currentGender);
+		const vnlState = VNL_SEASON_STATE[currentGender] || createEmptyVnlSeasonState();
+		const seasonLabel = vnlState.activeTeams.length ? `VNL ${vnlState.seasonYear}` : '';
 		if (!modal || !content) return;
 
 		activeTournamentCountry = '';
@@ -1673,6 +1693,10 @@
 					<i class="fa-solid fa-volleyball"></i>
 					<span>VNL</span>
 				</button>
+				<button type="button" class="tournament-select-btn tournament-select-newcomer ${activeTournamentType === 'vnl-newcomer' ? 'selected' : ''}" data-tournament-select="vnl-newcomer">
+					<i class="fa-solid fa-arrow-up"></i>
+					<span>VNL Newcomers</span>
+				</button>
 				<button type="button" class="tournament-select-btn is-under-construction" data-tournament-select="world" data-under-construction="1" disabled>
 					<span class="tournament-construction-tape">Under Construction</span>
 					<i class="fa-solid fa-earth-europe"></i>
@@ -1690,7 +1714,7 @@
 				</button>
 			</div>
 			<p class="tournament-picker-note">VNL is live now. Other tournament filters are being built.</p>
-			${vnlSummary ? `<p class="tournament-picker-meta">${vnlSummary}</p>` : ''}
+			${seasonLabel ? `<p class="tournament-picker-meta">${seasonLabel}</p>` : ''}
 		`;
 
 		modal.classList.remove('opacity-0', 'pointer-events-none');
@@ -1755,10 +1779,14 @@
 				return;
 			}
 
-			const displayRankings = activeTournamentType === 'vnl'
+			const displayRankings = isVnlTournamentMode(activeTournamentType)
 				? rankings.filter(team => {
 					const vnlStatus = getVnlCountryStatus(team.teamName || '');
-					return !!vnlStatus;
+					if (!vnlStatus) return false;
+					if (isVnlNewcomerFilter(activeTournamentType)) {
+						return vnlStatus.status === 'newcomer';
+					}
+					return true;
 				})
 				: rankings;
 
@@ -1768,13 +1796,16 @@
 			}
 			
 			// Generate leaderboard HTML - cleaner table-like presentation
-			const vnlSeasonSummary = activeTournamentType === 'vnl' ? getVnlSeasonSummary(currentGender) : '';
+			const vnlState = VNL_SEASON_STATE[currentGender] || createEmptyVnlSeasonState();
+			const vnlSeasonSummary = isVnlTournamentMode(activeTournamentType) && vnlState.activeTeams.length
+				? `VNL ${vnlState.seasonYear}`
+				: '';
 			const rowsHtml = displayRankings.map((team, index) => {
 				const rank = team.rank || index + 1;
 				const flagUrl = `https://flagcdn.com/w40/${(team.teamCode || '').toLowerCase()}.png`;
 				const points = team.wrs?.toFixed(2) || '—';
 				const teamName = team.teamName || 'Unknown';
-				const vnlStatus = activeTournamentType === 'vnl' ? getVnlCountryStatus(teamName) : null;
+				const vnlStatus = isVnlTournamentMode(activeTournamentType) ? getVnlCountryStatus(teamName) : null;
 				const isVnlTeam = !!(vnlStatus && vnlStatus.status !== 'relegated');
 				const medalTier = getWorldRankMedalTier(rank, activeTournamentType);
 				const rowClasses = [];
@@ -1856,25 +1887,23 @@
 		if (title) {
 			title.textContent = getTournamentLabel(activeTournamentType || 'vnl');
 		}
-		const vnlStatus = activeTournamentType === 'vnl' ? getVnlCountryStatus(activeTournamentCountry) : null;
+		const vnlStatus = isVnlTournamentMode(activeTournamentType) ? getVnlCountryStatus(activeTournamentCountry) : null;
 		const vnlState = VNL_SEASON_STATE[currentGender] || createEmptyVnlSeasonState();
 		const seasonYear = vnlState.seasonYear || new Date().getFullYear();
 		const selectedRank = Number(lastSelectedCountryContext?.ranking?.rank);
 		const rankTier = getWorldRankMedalTier(selectedRank, activeTournamentType);
 		const rankLabel = Number.isFinite(selectedRank) ? `#${selectedRank}` : '—';
 		let chipLabel = `${genderLabel} Tournament Team`;
-		if (activeTournamentType === 'vnl') {
+		if (isVnlTournamentMode(activeTournamentType)) {
 			if (vnlStatus?.status === 'newcomer') chipLabel = `${genderLabel} VNL Newcomer`;
 			else if (vnlStatus?.status === 'relegated') chipLabel = `${genderLabel} Relegated Team`;
 			else chipLabel = `${genderLabel} VNL Team`;
 		}
 
-		const transitionSummary = activeTournamentType === 'vnl'
+		const transitionSummary = isVnlTournamentMode(activeTournamentType)
 			? `
 				<div class="tournament-transition">
 					<div class="tournament-transition-row"><span>Season</span><strong>VNL ${seasonYear}</strong></div>
-					<div class="tournament-transition-row"><span>Newcomers</span><strong>${vnlState.newcomerTeams.length}</strong></div>
-					<div class="tournament-transition-row"><span>Relegated</span><strong>${vnlState.relegatedTeams.length}</strong></div>
 				</div>
 			`
 			: '';
@@ -2012,7 +2041,7 @@
 			fedElement.textContent = ranking?.confederationName || '';
 		}
 
-		const isVnlMode = activeTournamentType === 'vnl';
+		const isVnlMode = isVnlTournamentMode(activeTournamentType);
 		const vnlStatus = isVnlMode ? getVnlCountryStatus(countryName) : null;
 		const medalTier = getWorldRankMedalTier(ranking?.rank, activeTournamentType);
 		const isChampion = !!(vnlStatus?.isDefendingChampion && vnlStatus?.status !== 'relegated');

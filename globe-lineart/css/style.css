@@ -2520,9 +2520,22 @@ body.women {
 }
 
 .country-card.world-rank-gold-card {
-	border-color: #f3cd74 !important;
-	box-shadow: 0 12px 24px rgba(136, 103, 27, 0.16), 0 0 0 1px rgba(243, 205, 116, 0.35) !important;
-	background: linear-gradient(180deg, #f9fbff 0%, #eff5fd 100%) !important;
+	border-color: #efc35f !important;
+	box-shadow: 0 16px 30px rgba(122, 90, 20, 0.28), 0 0 0 2px rgba(250, 216, 123, 0.58) !important;
+	background: linear-gradient(180deg, #fffdf5 0%, #fff4d8 100%) !important;
+}
+
+.country-card.world-rank-gold-card .card-header {
+	background: linear-gradient(180deg, #fff8e8 0%, #ffefc7 100%) !important;
+	border-bottom-color: rgba(226, 174, 67, 0.45) !important;
+}
+
+.country-card.world-rank-gold-card .card-body {
+	background: linear-gradient(180deg, #fffdf5 0%, #fff8e7 100%) !important;
+}
+
+.country-card.world-rank-gold-card .country-name {
+	color: #80500a;
 }
 
 .country-card.world-rank-silver-card {
@@ -2793,11 +2806,11 @@ body.women {
 }
 
 .tournament-shell {
-	background: linear-gradient(155deg, rgba(25, 70, 122, 0.86) 0%, rgba(13, 39, 79, 0.92) 100%);
+	background: linear-gradient(180deg, rgba(20, 61, 108, 0.96) 0%, rgba(14, 45, 81, 0.96) 100%);
 	border-radius: 20px;
-	box-shadow: 0 28px 56px rgba(2, 6, 23, 0.48);
-	border: 1px solid rgba(173, 203, 238, 0.34);
-	backdrop-filter: blur(14px) saturate(112%);
+	box-shadow: 0 22px 44px rgba(2, 6, 23, 0.44);
+	border: 1px solid rgba(150, 182, 223, 0.28);
+	backdrop-filter: blur(10px);
 	overflow: hidden;
 }
 
@@ -2806,14 +2819,14 @@ body.women {
 	align-items: center;
 	justify-content: space-between;
 	padding: 14px 16px;
-	background: linear-gradient(180deg, rgba(33, 82, 141, 0.92) 0%, rgba(26, 67, 120, 0.9) 100%);
-	border-bottom: 1px solid rgba(173, 203, 238, 0.24);
+	background: linear-gradient(180deg, rgba(36, 88, 150, 0.96) 0%, rgba(28, 71, 126, 0.94) 100%);
+	border-bottom: 1px solid rgba(173, 203, 238, 0.2);
 }
 
 .tournament-content {
 	padding: 14px 16px;
 	color: #f8fafc;
-	background: linear-gradient(180deg, rgba(18, 58, 106, 0.9) 0%, rgba(14, 46, 86, 0.9) 100%);
+	background: linear-gradient(180deg, rgba(18, 58, 106, 0.95) 0%, rgba(14, 46, 86, 0.95) 100%);
 }
 
 .tournament-picker-grid {
@@ -2822,13 +2835,9 @@ body.women {
 	gap: 10px;
 }
 
-.tournament-picker-grid .tournament-select-btn:nth-child(5) {
-	grid-column: 1 / -1;
-}
-
 .tournament-select-btn {
-	border: 1px solid rgba(255, 255, 255, 0.2);
-	background: rgba(255, 255, 255, 0.08);
+	border: 1px solid rgba(176, 204, 238, 0.24);
+	background: rgba(255, 255, 255, 0.07);
 	color: #f8fafc;
 	border-radius: 12px;
 	padding: 14px 10px;
@@ -2842,7 +2851,7 @@ body.women {
 	justify-content: center;
 	gap: 7px;
 	cursor: pointer;
-	transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+	transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 	position: relative;
 	overflow: hidden;
 }
@@ -2853,7 +2862,8 @@ body.women {
 
 .tournament-select-btn:hover {
 	background: rgba(255, 255, 255, 0.12);
-	border-color: rgba(255, 255, 255, 0.35);
+	border-color: rgba(181, 211, 245, 0.42);
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
 	transform: translateY(-1px);
 }
 
@@ -2863,36 +2873,50 @@ body.women {
 	border-color: #facc15;
 }
 
+.tournament-select-newcomer {
+	border-color: rgba(74, 222, 128, 0.35);
+	background: linear-gradient(180deg, rgba(11, 120, 93, 0.55) 0%, rgba(9, 94, 72, 0.4) 100%);
+}
+
+.tournament-select-newcomer.selected {
+	background: #34d399;
+	border-color: #34d399;
+	color: #03261d;
+}
+
 .tournament-select-btn[disabled],
 .tournament-select-btn.is-under-construction {
 	cursor: not-allowed;
-	opacity: 0.72;
+	opacity: 0.82;
 	filter: saturate(0.7);
 	pointer-events: none;
+	padding-top: 30px;
 }
 
 .tournament-construction-tape {
 	position: absolute;
-	top: 10px;
-	right: -42px;
-	padding: 2px 40px;
+	top: 6px;
+	left: 8px;
+	right: 8px;
+	padding: 2px 8px;
 	font-size: 9px;
 	font-weight: 900;
 	text-transform: uppercase;
-	letter-spacing: 0.85px;
+	letter-spacing: 0.65px;
+	text-align: center;
+	white-space: nowrap;
 	color: #1f2937;
 	background: #facc15;
-	border-top: 1px dashed rgba(17, 24, 39, 0.5);
-	border-bottom: 1px dashed rgba(17, 24, 39, 0.5);
-	transform: rotate(34deg);
-	box-shadow: 0 5px 10px rgba(15, 23, 42, 0.2);
+	border: 1px dashed rgba(17, 24, 39, 0.45);
+	border-radius: 999px;
+	box-shadow: 0 3px 8px rgba(15, 23, 42, 0.24);
 	pointer-events: none;
 }
 
 .tournament-picker-note {
 	margin: 12px 2px 2px;
 	font-size: 12px;
-	color: rgba(226, 232, 240, 0.94);
+	color: rgba(226, 232, 240, 0.88);
 }
 
 .tournament-picker-meta {
@@ -2967,8 +2991,8 @@ body.women {
 
 .tournament-actions {
 	padding: 0 16px 16px;
-	background: linear-gradient(180deg, rgba(14, 46, 86, 0.9) 0%, rgba(12, 38, 72, 0.92) 100%);
-	border-top: 1px solid rgba(173, 203, 238, 0.18);
+	background: linear-gradient(180deg, rgba(13, 41, 75, 0.95) 0%, rgba(10, 34, 63, 0.95) 100%);
+	border-top: 1px solid rgba(173, 203, 238, 0.16);
 }
 
 .tournament-btn {
@@ -3030,7 +3054,9 @@ body.women {
 	}
 
 	.tournament-construction-tape {
-		right: -48px;
+		left: 6px;
+		right: 6px;
+		font-size: 8px;
 	}
 
 	body.mobile-tournament-open #zoomControlsWrap,
