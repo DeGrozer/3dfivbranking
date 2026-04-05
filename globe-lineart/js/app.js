@@ -16,7 +16,6 @@
 	let vnlStatusPopupAnimationCleanup = null;
 	let vnlCardPreviewTimer = null;
 	let lastSelectedCountryContext = null;
-	let tournamentButtonSceneCleanup = null;
 
 	function isMobileViewport() {
 		return window.matchMedia('(max-width: 768px)').matches;
@@ -332,173 +331,6 @@
 		};
 	}
 
-	function setupTournamentButtonScene() {
-		if (typeof tournamentButtonSceneCleanup === 'function') {
-			tournamentButtonSceneCleanup();
-			tournamentButtonSceneCleanup = null;
-		}
-
-		const button = document.getElementById('btnTournament');
-		const canvas = button?.querySelector('.control-chip-scene');
-		if (!button || !canvas || typeof THREE === 'undefined') return;
-
-		try {
-			const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-			renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-
-			const scene = new THREE.Scene();
-			const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 24);
-			camera.position.set(0, 0.35, 6.1);
-
-			const disposables = [];
-			const track = (resource) => {
-				disposables.push(resource);
-				return resource;
-			};
-
-			scene.add(new THREE.AmbientLight(0xffffff, 0.72));
-			const keyLight = new THREE.DirectionalLight(0xffffff, 1.06);
-			keyLight.position.set(2, 3, 4);
-			scene.add(keyLight);
-			const fillLight = new THREE.DirectionalLight(0x9cc6ff, 0.44);
-			fillLight.position.set(-2, -1.2, -2);
-			scene.add(fillLight);
-
-			const skinMaterial = track(new THREE.MeshStandardMaterial({
-				color: 0xf7ddc5,
-				roughness: 0.45,
-				metalness: 0.04
-			}));
-
-			const createPlayer = (uniformColor) => {
-				const uniformMaterial = track(new THREE.MeshStandardMaterial({
-					color: uniformColor,
-					roughness: 0.34,
-					metalness: 0.12
-				}));
-
-				const group = new THREE.Group();
-				const torso = new THREE.Mesh(track(new THREE.BoxGeometry(0.46, 0.9, 0.28)), uniformMaterial);
-				torso.position.y = 0.42;
-				group.add(torso);
-
-				const head = new THREE.Mesh(track(new THREE.SphereGeometry(0.19, 14, 14)), skinMaterial);
-				head.position.y = 1.1;
-				group.add(head);
-
-				const leftLeg = new THREE.Mesh(track(new THREE.CylinderGeometry(0.07, 0.07, 0.5, 10)), uniformMaterial);
-				leftLeg.position.set(-0.12, -0.16, 0);
-				group.add(leftLeg);
-
-				const rightLeg = new THREE.Mesh(track(new THREE.CylinderGeometry(0.07, 0.07, 0.5, 10)), uniformMaterial);
-				rightLeg.position.set(0.12, -0.16, 0);
-				group.add(rightLeg);
-
-				const leftArmPivot = new THREE.Group();
-				leftArmPivot.position.set(-0.28, 0.68, 0);
-				const leftArm = new THREE.Mesh(track(new THREE.CylinderGeometry(0.055, 0.055, 0.48, 10)), uniformMaterial);
-				leftArm.position.y = -0.2;
-				leftArm.rotation.z = 0.2;
-				leftArmPivot.add(leftArm);
-				group.add(leftArmPivot);
-
-				const rightArmPivot = new THREE.Group();
-				rightArmPivot.position.set(0.28, 0.68, 0);
-				const rightArm = new THREE.Mesh(track(new THREE.CylinderGeometry(0.055, 0.055, 0.48, 10)), uniformMaterial);
-				rightArm.position.y = -0.2;
-				rightArm.rotation.z = -0.2;
-				rightArmPivot.add(rightArm);
-				group.add(rightArmPivot);
-
-				return { group, leftArmPivot, rightArmPivot };
-			};
-
-			const leftPlayer = createPlayer(0x3a72c3);
-			leftPlayer.group.position.set(-1.45, -0.44, 0);
-			scene.add(leftPlayer.group);
-
-			const rightPlayer = createPlayer(0x2f9a68);
-			rightPlayer.group.position.set(1.45, -0.44, 0);
-			rightPlayer.group.rotation.y = Math.PI;
-			scene.add(rightPlayer.group);
-
-			const net = new THREE.Mesh(
-				track(new THREE.BoxGeometry(0.055, 1.45, 0.045)),
-				track(new THREE.MeshStandardMaterial({ color: 0xdbe7f5, roughness: 0.6, metalness: 0.1 }))
-			);
-			net.position.set(0, -0.06, 0);
-			scene.add(net);
-
-			const court = new THREE.Mesh(
-				track(new THREE.PlaneGeometry(5.2, 2.2)),
-				track(new THREE.MeshBasicMaterial({ color: 0xa8bfdc, transparent: true, opacity: 0.16 }))
-			);
-			court.rotation.x = -Math.PI / 2;
-			court.position.y = -0.96;
-			scene.add(court);
-
-			const ball = new THREE.Mesh(
-				track(new THREE.SphereGeometry(0.24, 18, 18)),
-				track(new THREE.MeshStandardMaterial({ color: 0xf3c347, roughness: 0.28, metalness: 0.2 }))
-			);
-			ball.position.set(-1.2, 0.66, 0.04);
-			scene.add(ball);
-
-			const resize = () => {
-				const rect = canvas.getBoundingClientRect();
-				const width = Math.max(1, Math.round(rect.width || 1));
-				const height = Math.max(1, Math.round(rect.height || 1));
-				renderer.setSize(width, height, false);
-				camera.aspect = width / height;
-				camera.updateProjectionMatrix();
-			};
-
-			resize();
-			window.addEventListener('resize', resize);
-
-			let rafId = 0;
-			const animate = () => {
-				const t = performance.now() * 0.001;
-				const phase = (Math.sin(t * 2.2) + 1) * 0.5;
-				const travel = THREE.MathUtils.smootherstep(phase, 0, 1);
-
-				ball.position.x = THREE.MathUtils.lerp(-1.2, 1.2, travel);
-				ball.position.y = -0.02 + Math.sin(travel * Math.PI) * 1.16;
-				ball.position.z = Math.sin(t * 2.2) * 0.06;
-				ball.rotation.x += 0.13;
-				ball.rotation.y += 0.17;
-
-				leftPlayer.group.position.y = -0.44 + Math.sin(t * 4.1) * 0.03;
-				rightPlayer.group.position.y = -0.44 + Math.cos(t * 4.1) * 0.03;
-
-				leftPlayer.leftArmPivot.rotation.z = -0.38 + Math.sin(t * 2.2) * 0.22;
-				leftPlayer.rightArmPivot.rotation.z = 0.48 - Math.sin(t * 2.2 + 0.6) * 0.18;
-				rightPlayer.leftArmPivot.rotation.z = -0.47 + Math.sin(t * 2.2 + Math.PI + 0.4) * 0.18;
-				rightPlayer.rightArmPivot.rotation.z = 0.36 - Math.sin(t * 2.2 + Math.PI) * 0.22;
-
-				renderer.render(scene, camera);
-				rafId = requestAnimationFrame(animate);
-			};
-			animate();
-
-			const cleanup = () => {
-				cancelAnimationFrame(rafId);
-				window.removeEventListener('resize', resize);
-				disposables.forEach((resource) => {
-					if (resource && typeof resource.dispose === 'function') {
-						resource.dispose();
-					}
-				});
-				renderer.dispose();
-			};
-
-			tournamentButtonSceneCleanup = cleanup;
-			window.addEventListener('beforeunload', cleanup, { once: true });
-		} catch (error) {
-			console.warn('Tournament button scene unavailable:', error);
-		}
-	}
-
 	function escapeHtml(value) {
 		return String(value ?? '')
 			.replace(/&/g, '&amp;')
@@ -549,22 +381,26 @@
 		let label = 'VNL TEAM';
 		let subline = `${countryName} • VNL ${vnlStatus.seasonYear}`;
 		let toneClass = 'is-active';
+		let flowDirection = '';
 
 		if (vnlStatus.status === 'newcomer') {
 			label = 'PROMOTED TEAM';
 			subline = `${countryName} • Promoted for VNL ${vnlStatus.seasonYear}`;
 			toneClass = 'is-newcomer';
+			flowDirection = 'forward';
 		} else if (vnlStatus.status === 'relegated') {
 			const downYear = vnlStatus.previousSeasonYear || (Number(vnlStatus.seasonYear) - 1);
 			label = 'RELEGATED TEAM';
 			subline = `${countryName} • Relegated after ${downYear}`;
 			toneClass = 'is-relegated';
+			flowDirection = 'backward';
 		}
 
 		if (vnlStatus.isDefendingChampion && vnlStatus.status !== 'relegated') {
 			label = 'DEFENDING CHAMPION';
 			subline = `${countryName} • VNL ${vnlStatus.seasonYear} title holder`;
 			toneClass = 'is-champion';
+			flowDirection = '';
 		}
 
 		if (Number.isFinite(safeRank)) {
@@ -573,6 +409,7 @@
 
 		const previousYearLabel = Number.isFinite(Number(previousEdition.year)) ? previousEdition.year : 'N/A';
 		const previousMedalLabel = previousEdition.medalLabel || 'No podium';
+		const flowMarkup = '';
 		const trophyMarkup = (vnlStatus.isDefendingChampion && vnlStatus.status !== 'relegated')
 			? `<img class="vnl-inline-trophy" src="${VNL_TROPHY_IMAGE_PATH}" alt="VNL trophy" onerror="this.style.display='none'">`
 			: '';
@@ -589,6 +426,7 @@
 					<div class="vnl-inline-copy">
 						<div class="vnl-inline-line">
 							<span class="vnl-inline-label">${escapeHtml(label)}</span>
+							${flowMarkup}
 						</div>
 						<span class="vnl-inline-subline">${escapeHtml(subline)}</span>
 					</div>
@@ -624,8 +462,7 @@
 		} else if (vnlStatus?.status === 'relegated') {
 			label = 'RELEGATED TEAM';
 			toneClass = 'is-relegated';
-			// Keep relegated cards cleaner by removing the small LED popout.
-			ledDirection = '';
+			ledDirection = 'left';
 		}
 
 		if (vnlStatus?.isDefendingChampion && vnlStatus?.status !== 'relegated') {
@@ -654,9 +491,7 @@
 		const trophyMarkup = bannerMeta.showTrophy
 			? `<img class="card-top-vnl-trophy" src="${VNL_TROPHY_IMAGE_PATH}" alt="VNL trophy" onerror="this.style.display='none'">`
 			: '';
-		const ledMarkup = bannerMeta.ledDirection
-			? `<span class="card-top-vnl-led ${bannerMeta.ledDirection}" aria-hidden="true"></span>`
-			: '';
+		const ledMarkup = '';
 
 		const banner = document.createElement('div');
 		banner.className = `card-top-vnl-banner ${bannerMeta.toneClass}`;
@@ -727,11 +562,6 @@
 			return;
 		}
 
-		if (vnlStatus.status === 'relegated') {
-			hideVnlStatusPopup();
-			return;
-		}
-
 		disposeVnlStatusPopupAnimation();
 		const safeRank = Number(ranking?.rank);
 		const previousEdition = getVnlPreviousEditionInfo(countryName, ranking, vnlStatus.seasonYear);
@@ -739,22 +569,26 @@
 		let label = 'VNL TEAM';
 		let subline = `${countryName} • VNL ${vnlStatus.seasonYear}`;
 		let toneClass = 'is-active';
+		let flowDirection = '';
 
 		if (vnlStatus.status === 'newcomer') {
 			label = 'PROMOTED TEAM';
 			subline = `${countryName} • Promoted for VNL ${vnlStatus.seasonYear}`;
 			toneClass = 'is-newcomer';
+			flowDirection = 'forward';
 		} else if (vnlStatus.status === 'relegated') {
 			const downYear = vnlStatus.previousSeasonYear || (Number(vnlStatus.seasonYear) - 1);
 			label = 'RELEGATED TEAM';
 			subline = `${countryName} • Relegated after ${downYear}`;
 			toneClass = 'is-relegated';
+			flowDirection = 'backward';
 		}
 
 		if (vnlStatus.isDefendingChampion && vnlStatus.status !== 'relegated') {
 			label = 'DEFENDING CHAMPION';
 			subline = `${countryName}`;
 			toneClass = 'is-champion';
+			flowDirection = '';
 		}
 
 		if (!vnlStatus.isDefendingChampion && Number.isFinite(safeRank) && safeRank === 1) {
@@ -768,6 +602,9 @@
 		const trophyMarkup = (vnlStatus.isDefendingChampion && vnlStatus.status !== 'relegated')
 			? `<img class="vnl-status-trophy" src="${VNL_TROPHY_IMAGE_PATH}" alt="VNL trophy" onerror="this.style.display='none'">`
 			: '';
+
+		const flowMarkup = '';
+		const raceMarkup = '';
 
 		const previousYearLabel = Number.isFinite(Number(previousEdition.year)) ? previousEdition.year : 'N/A';
 		const previousMedalLabel = previousEdition.medalLabel || 'No podium';
@@ -803,10 +640,12 @@
 
 		popup.innerHTML = `
 			<div class="vnl-status-popup-inner">
+				${raceMarkup}
 				${trophyMarkup}
 				<div class="vnl-status-copy">
 					<div class="vnl-status-line">
 						<span class="vnl-status-label">${escapeHtml(label)}</span>
+						${flowMarkup}
 					</div>
 					<span class="vnl-status-subline">${escapeHtml(subline)}</span>
 					${historyMarkup}
@@ -852,7 +691,6 @@
 		const closeModal = () => {
 			modal.classList.add('hidden');
 			modal.setAttribute('aria-hidden', 'true');
-			syncOverlayUiState();
 		};
 
 		if (closeBtn) {
@@ -879,7 +717,6 @@
 
 		modal.classList.remove('hidden');
 		modal.setAttribute('aria-hidden', 'false');
-		syncOverlayUiState();
 	}
 
 	function shouldAutoShowReleaseNotes() {
@@ -889,24 +726,6 @@
 		} catch (error) {
 			return false;
 		}
-	}
-
-	function isOverlayElementOpen(element) {
-		if (!element) return false;
-		if (element.classList.contains('hidden')) return false;
-		if (element.classList.contains('opacity-0')) return false;
-		if (element.classList.contains('pointer-events-none')) return false;
-		return true;
-	}
-
-	function syncOverlayUiState() {
-		const overlayOpen =
-			isOverlayElementOpen(document.getElementById('tournamentModal')) ||
-			isOverlayElementOpen(document.getElementById('infoModal')) ||
-			isOverlayElementOpen(document.getElementById('releaseNotesModal')) ||
-			isOverlayElementOpen(document.getElementById('leaderboardModal'));
-
-		document.body.classList.toggle('overlay-open', overlayOpen);
 	}
 	
 	// ============================================================================
@@ -1409,7 +1228,6 @@
 			setupLeaderboard();
 			setupTournamentToggle();
 			setupTournamentModal();
-			setupTournamentButtonScene();
 			setupInfoModal();
 			setupMobileTitleToggle();
 			setupReleaseNotesModal();
@@ -1442,7 +1260,6 @@
 				if (isMobileViewport()) {
 					document.body.classList.add('mobile-info-open');
 				}
-				syncOverlayUiState();
 			});
 		}
 
@@ -1465,7 +1282,6 @@
 			infoModal.classList.add('opacity-0', 'pointer-events-none');
 		}
 		document.body.classList.remove('mobile-info-open');
-		syncOverlayUiState();
 	}
 	
 	/**
@@ -1553,7 +1369,6 @@
 	function updateGenderUI() {
 		const btnWomen = document.getElementById('btnWomen');
 		const btnMen = document.getElementById('btnMen');
-		if (!btnWomen || !btnMen) return;
 		
 		const isWomen = currentGender === 'women';
 		btnWomen.classList.toggle('active', isWomen);
@@ -1562,8 +1377,7 @@
 		btnMen.setAttribute('aria-pressed', String(!isWomen));
 		
 		// Update body class for theme
-		document.body.classList.remove('women', 'men');
-		document.body.classList.add(currentGender);
+		document.body.className = document.body.className.replace(/women|men/, currentGender);
 		
 		// Close any open card
 		hideCountryCard();
@@ -1632,16 +1446,7 @@
 	function setupTournamentModal() {
 		const tournamentModal = document.getElementById('tournamentModal');
 		const closeTournament = document.getElementById('closeTournament');
-		const openCountryBtn = document.getElementById('tournamentOpenCountry');
 		const tournamentContent = document.getElementById('tournamentContent');
-		const tournamentActions = document.querySelector('.tournament-actions');
-
-		if (openCountryBtn) {
-			openCountryBtn.style.display = 'none';
-		}
-		if (tournamentActions) {
-			tournamentActions.classList.add('is-hidden');
-		}
 
 		if (closeTournament) {
 			closeTournament.addEventListener('click', hideTournamentModal);
@@ -1651,16 +1456,6 @@
 			tournamentModal.addEventListener('click', (e) => {
 				if (e.target === tournamentModal) {
 					hideTournamentModal();
-				}
-			});
-		}
-
-		if (openCountryBtn) {
-			openCountryBtn.addEventListener('click', () => {
-				const team = activeTournamentCountry;
-				hideTournamentModal();
-				if (team) {
-					GlobeRenderer.selectCountryByName(team);
 				}
 			});
 		}
@@ -1678,39 +1473,13 @@
 		}
 	}
 
-	function getTournamentFilterButtonLabel() {
-		return activeTournamentType === 'vnl' ? 'VNL' : 'Tournament Filter';
-	}
-
-	function syncTournamentFilterButton() {
-		const btnTournament = document.getElementById('btnTournament');
-		if (!btnTournament) return;
-
-		const labelEl = document.getElementById('btnTournamentLabel');
-		if (labelEl) {
-			labelEl.textContent = getTournamentFilterButtonLabel();
-		}
-
-		btnTournament.classList.toggle('active', !!activeTournamentType);
-		btnTournament.classList.toggle('has-filter', !!activeTournamentType);
-	}
-
 	function setupTournamentToggle() {
 		const btnTournament = document.getElementById('btnTournament');
 		if (!btnTournament) return;
 
-		btnTournament.addEventListener('click', (event) => {
-			if (event.target.closest('.control-chip-clear')) {
-				event.preventDefault();
-				event.stopPropagation();
-				void applyTournamentSelection('');
-				return;
-			}
-
+		btnTournament.addEventListener('click', () => {
 			showTournamentPickerModal();
 		});
-
-		syncTournamentFilterButton();
 	}
 
 	async function applyTournamentSelection(type) {
@@ -1732,7 +1501,25 @@
 			}
 		}
 		document.body.classList.toggle('tournament-vnl', isVnlTournamentMode(activeTournamentType));
-		syncTournamentFilterButton();
+		const btnTournament = document.getElementById('btnTournament');
+		if (btnTournament) {
+			const isVnl = isVnlTournamentMode();
+			const icon = btnTournament.querySelector('.control-chip-icon i');
+			const title = btnTournament.querySelector('.control-chip-title');
+			const subtitle = btnTournament.querySelector('.control-chip-subtitle');
+			btnTournament.classList.toggle('active', isVnl);
+			btnTournament.classList.toggle('is-vnl', isVnl);
+			btnTournament.setAttribute('aria-label', isVnl ? 'VNL filter active' : 'Open tournament filter');
+			if (icon) {
+				icon.className = isVnl ? 'fa-solid fa-volleyball' : 'fa-solid fa-filter';
+			}
+			if (title) {
+				title.textContent = isVnl ? 'VNL' : 'Tournament';
+			}
+			if (subtitle) {
+				subtitle.textContent = isVnl ? 'Volleyball Nations League' : 'All Countries';
+			}
+		}
 
 		window.getVnlBadgeInfo = getVnlCountryInfo;
 		window.isTournamentVnlModeEnabled = () => isVnlTournamentMode();
@@ -1859,26 +1646,24 @@
 		const modal = document.getElementById('tournamentModal');
 		const content = document.getElementById('tournamentContent');
 		const title = document.getElementById('tournamentTitle');
-		const openCountryBtn = document.getElementById('tournamentOpenCountry');
-		const tournamentActions = document.querySelector('.tournament-actions');
 		if (!modal || !content) return;
 
 		activeTournamentCountry = '';
 		if (title) {
-			title.textContent = 'Choose Tournament';
-		}
-		if (openCountryBtn) {
-			openCountryBtn.style.display = 'none';
-		}
-		if (tournamentActions) {
-			tournamentActions.classList.add('is-hidden');
+			title.textContent = 'Tournament Filter';
 		}
 
 		content.innerHTML = `
 			<div class="tournament-picker-grid">
+				<button type="button" class="tournament-select-btn ${activeTournamentType === '' ? 'selected' : ''}" data-tournament-select="all">
+					<i class="fa-solid fa-filter"></i>
+					<span class="tournament-select-title">Clear Filter</span>
+					<span class="tournament-select-subtitle">Show all countries</span>
+				</button>
 				<button type="button" class="tournament-select-btn ${activeTournamentType === 'vnl' ? 'selected' : ''}" data-tournament-select="vnl">
 					<i class="fa-solid fa-volleyball"></i>
-					<span>VNL</span>
+					<span class="tournament-select-title tournament-select-title-vnl">VNL</span>
+					<span class="tournament-select-subtitle">Volleyball Nations League</span>
 				</button>
 				<button type="button" class="tournament-select-btn is-under-construction" data-tournament-select="world" data-under-construction="1" disabled>
 					<span class="tournament-construction-tape">Under Construction</span>
@@ -1902,7 +1687,6 @@
 		if (isMobileViewport()) {
 			document.body.classList.add('mobile-tournament-open');
 		}
-		syncOverlayUiState();
 	}
 	
 	/**
@@ -1948,7 +1732,6 @@
 		if (isMobileViewport()) {
 			document.body.classList.add('mobile-leaderboard-open');
 		}
-		syncOverlayUiState();
 		
 		// Show loading state
 		content.innerHTML = '<div class="text-center text-gray-500 py-8 text-sm">Loading...</div>';
@@ -2002,6 +1785,8 @@
 					if (vnlStatus?.status === 'newcomer') {
 						vnlBadge += '<span class="team-vnl-badge newcomer"><i class="fa-solid fa-arrow-up"></i>Newcomer</span>';
 					}
+				} else if (vnlStatus?.status === 'relegated') {
+					vnlBadge = '<span class="team-vnl-badge relegated"><i class="fa-solid fa-arrow-down"></i>Relegated</span>';
 				}
 				let rankClass = '';
 				if (rank === 1) rankClass = 'top1';
@@ -2049,14 +1834,11 @@
 		}
 		document.body.classList.remove('mobile-leaderboard-open');
 		document.body.classList.remove('mobile-tournament-open');
-		syncOverlayUiState();
 	}
 
 	function showTournamentModal(countryName) {
 		const modal = document.getElementById('tournamentModal');
 		const content = document.getElementById('tournamentContent');
-		const openCountryBtn = document.getElementById('tournamentOpenCountry');
-		const tournamentActions = document.querySelector('.tournament-actions');
 		if (!modal || !content) return;
 
 		activeTournamentCountry = countryName || '';
@@ -2087,13 +1869,6 @@
 			`
 			: '';
 
-		if (openCountryBtn) {
-			openCountryBtn.style.display = activeTournamentCountry ? 'inline-flex' : 'none';
-		}
-		if (tournamentActions) {
-			tournamentActions.classList.toggle('is-hidden', !activeTournamentCountry);
-		}
-
 		content.innerHTML = `
 			<div class="tournament-team-row">
 				<div class="tournament-chip"><i class="fa-solid fa-trophy"></i><span>${chipLabel}</span></div>
@@ -2112,25 +1887,15 @@
 		if (isMobileViewport()) {
 			document.body.classList.add('mobile-tournament-open');
 		}
-		syncOverlayUiState();
 	}
 
 	function hideTournamentModal() {
 		const modal = document.getElementById('tournamentModal');
-		const openCountryBtn = document.getElementById('tournamentOpenCountry');
-		const tournamentActions = document.querySelector('.tournament-actions');
 		if (modal) {
 			modal.classList.add('opacity-0', 'pointer-events-none');
 		}
-		if (openCountryBtn) {
-			openCountryBtn.style.display = 'none';
-		}
-		if (tournamentActions) {
-			tournamentActions.classList.add('is-hidden');
-		}
 		activeTournamentCountry = '';
 		document.body.classList.remove('mobile-tournament-open');
-		syncOverlayUiState();
 	}
 	
 	/**

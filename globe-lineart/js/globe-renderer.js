@@ -338,7 +338,7 @@ const GlobeRenderer = (function() {
 		const anchor = getMainlandAnchor(hoveredVnlFeature);
 		if (!anchor) return;
 		const x = anchor[0];
-		const y = Math.max(24, anchor[1] - 34);
+		const y = Math.max(34, anchor[1] - 56);
 		if (!Number.isFinite(x) || !Number.isFinite(y)) return;
 
 		const badge = vnlBadgeGroup.append('g')
@@ -346,25 +346,52 @@ const GlobeRenderer = (function() {
 			.attr('pointer-events', 'none');
 
 		badge.append('rect')
-			.attr('x', -33)
-			.attr('y', -17)
-			.attr('width', 66)
-			.attr('height', 34)
-			.attr('rx', 12)
-			.attr('fill', '#1f4aa8')
-			.attr('stroke', '#0f2a52')
-			.attr('stroke-width', 2);
+			.attr('x', -56)
+			.attr('y', -24)
+			.attr('width', 112)
+			.attr('height', 44)
+			.attr('rx', 14)
+			.attr('fill', 'rgba(9, 31, 58, 0.24)');
+
+		badge.append('rect')
+			.attr('x', -54)
+			.attr('y', -26)
+			.attr('width', 108)
+			.attr('height', 40)
+			.attr('rx', 13)
+			.attr('fill', '#E61556');
 
 		badge.append('text')
 			.attr('text-anchor', 'middle')
-			.attr('dominant-baseline', 'central')
-			.attr('dy', '0.1em')
-			.attr('font-size', 21)
+			.attr('dominant-baseline', 'middle')
+			.attr('y', -2)
+			.attr('x', -8)
+			.attr('font-size', 24)
 			.attr('font-weight', 400)
 			.attr('font-family', '"VNL", "Barlow Condensed", sans-serif')
-			.attr('letter-spacing', '0.55px')
-			.attr('fill', '#facc15')
+			.attr('letter-spacing', '1px')
+			.attr('fill', '#F7D025')
 			.text('VNL');
+
+		badge.append('text')
+			.attr('text-anchor', 'middle')
+			.attr('dominant-baseline', 'middle')
+			.attr('x', 28)
+			.attr('y', -2)
+			.attr('font-size', 10)
+			.attr('font-weight', 800)
+			.attr('font-family', '"Barlow Condensed", sans-serif')
+			.attr('letter-spacing', '0.8px')
+			.attr('fill', '#ffffff')
+			.text('TEAM');
+
+		badge.append('path')
+			.attr('d', 'M0,14 L-9,31 L9,31 Z')
+			.attr('fill', '#E61556');
+
+		badge.append('path')
+			.attr('d', 'M0,18 L-4,27 L4,27 Z')
+			.attr('fill', '#F7D025');
 
 		vnlBadgeGroup.raise();
 	}
