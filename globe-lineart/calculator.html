@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>FIVB Ranking Calculator</title>
+	<link rel="icon" href="https://fonts.gstatic.com/s/e/notoemoji/latest/1f3d0/emoji.svg" type="image/svg+xml">
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+	<link rel="stylesheet" href="css/calculator.css">
+</head>
+<body>
+	<main class="calc-shell">
+		<header class="calc-header">
+			<div>
+				<p class="eyebrow">Volleyball World Ranking</p>
+				<h1>VS Ranking Calculator from FIVB</h1>
+				<p id="calcMeta" class="meta-line"></p>
+			</div>
+			<div class="header-actions">
+				<a id="toRankings" class="header-link" href="rankings.html">
+					<i class="fa-solid fa-list-ol" aria-hidden="true"></i>
+					<span>Rankings</span>
+				</a>
+				<a id="toGlobe" class="header-link" href="index.html">
+					<i class="fa-solid fa-earth-asia" aria-hidden="true"></i>
+					<span>Globe</span>
+				</a>
+			</div>
+		</header>
+
+		<section class="calc-layout">
+			<div class="left-stack">
+				<section class="controls-card">
+					<h2 class="section-title">Select The Tournament</h2>
+					<div class="control-row control-row-top">
+						<label>
+							<span>Gender</span>
+							<select id="genderSelect">
+								<option value="women">Women</option>
+								<option value="men">Men</option>
+							</select>
+						</label>
+						<label>
+							<span>Tournament</span>
+							<select id="tournamentSelect">
+								<option value="vnl">VNL</option>
+								<option value="olympics">Olympics</option>
+								<option value="worldcup">World Championship/Cup</option>
+								<option value="continental">Continental Championship</option>
+								<option value="annual-continental">Annual Continental Event</option>
+								<option value="annual-zonal">Annual Zonal Event</option>
+								<option value="custom">Custom K</option>
+							</select>
+						</label>
+						<label id="customKWrap" class="hidden">
+							<span>Custom K</span>
+							<input id="customKInput" type="number" min="1" max="100" step="0.5" value="40">
+						</label>
+					</div>
+				</section>
+
+				<section class="scenario-grid">
+					<div class="match-labels">
+						<span>First Team</span>
+						<span>Second Team</span>
+						<span>Score</span>
+						<span></span>
+					</div>
+					<div class="control-row vs-row">
+						<label>
+							<select id="teamASelect"></select>
+						</label>
+						<label>
+							<select id="teamBSelect"></select>
+						</label>
+						<label>
+							<select id="outcomeSelect"></select>
+						</label>
+						<div class="match-actions">
+							<button id="addMatchBtn" class="tiny-btn" type="button">+ Add</button>
+							<button id="clearMatchesBtn" class="tiny-btn ghost" type="button">Clear</button>
+						</div>
+						<button id="calculateBtn" class="calculate-btn" type="button">Calculate</button>
+					</div>
+
+					<div id="extraMatches" class="extra-matches" aria-live="polite"></div>
+
+					<div id="cardsRow" class="cards-row">
+						<article class="team-panel">
+							<div id="teamAFlagStage" class="stage-card flag-stage"></div>
+							<div id="teamAResultStage" class="stage-card result-stage"></div>
+						</article>
+						<div class="vs-column">
+							<div class="vs-badge">VS</div>
+							<p id="selectedOutcomeLabel" class="vs-outcome"></p>
+						</div>
+						<article class="team-panel">
+							<div id="teamBFlagStage" class="stage-card flag-stage"></div>
+							<div id="teamBResultStage" class="stage-card result-stage"></div>
+						</article>
+					</div>
+
+					<div id="extraMatchCards" class="extra-match-cards hidden" aria-live="polite"></div>
+				</section>
+
+				<p id="resultDisclaimer" class="result-disclaimer">Projection uses the current FIVB formula and a live points snapshot. Final official updates may differ slightly due to data timing.</p>
+			</div>
+
+			<aside id="rankingStage" class="stage-card ranking-stage"></aside>
+		</section>
+
+		<div id="howHelp" class="how-help" aria-live="polite">
+			<button id="howHelpBtn" class="how-help-btn" type="button" aria-label="How this works">?</button>
+			<div id="howHelpPopover" class="how-help-popover" role="note" aria-hidden="true">
+				<h4>How this works</h4>
+				<p>Pick two countries, choose a competition weight, then choose a match result.</p>
+				<p>The calculator uses live FIVB points and estimates point transfer for each scoreline.</p>
+				<p>Updated ranking is re-sorted using all countries from the current ranking list.</p>
+			</div>
+		</div>
+	</main>
+
+	<script src="js/ranking-fetcher.js"></script>
+	<script src="js/ranking-calculator.js"></script>
+</body>
+</html>

@@ -1226,6 +1226,7 @@
 			setupCardClose();
 			setupSparklineHover();
 			setupLeaderboard();
+			setupCalculatorButton();
 			setupTournamentToggle();
 			setupTournamentModal();
 			setupInfoModal();
@@ -1333,9 +1334,8 @@
 	/**
 	 * Load rankings for gender (no longer needed - RankingFetcher handles caching)
 	 */
-	async function loadRankings(gender) {
-		// RankingFetcher handles caching automatically
-		console.log(`Rankings for ${gender} will be fetched on demand`);
+	async function loadRankings() {
+		// RankingFetcher handles caching automatically.
 	}
 	
 	/**
@@ -1441,6 +1441,24 @@
 			params.set('tournament', activeTournamentType);
 		}
 		window.location.href = `rankings.html?${params.toString()}`;
+	}
+
+	function setupCalculatorButton() {
+		const btnCalculator = document.getElementById('btnCalculator');
+		if (!btnCalculator) return;
+
+		btnCalculator.addEventListener('click', () => {
+			openCalculatorPage();
+		});
+	}
+
+	function openCalculatorPage() {
+		const params = new URLSearchParams();
+		params.set('gender', currentGender);
+		if (activeTournamentType) {
+			params.set('tournament', activeTournamentType);
+		}
+		window.location.href = `calculator.html?${params.toString()}`;
 	}
 
 	function setupTournamentModal() {

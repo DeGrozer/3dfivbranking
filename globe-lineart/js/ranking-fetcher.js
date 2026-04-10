@@ -77,14 +77,11 @@ const RankingFetcher = (function() {
 		const cacheTime = rankingsCache.lastFetch[gender];
 		const now = Date.now();
 		if (rankingsCache[gender] && cacheTime && (now - cacheTime) < 3600000) {
-			console.log(`✓ Using cached ${gender} rankings`);
 			return rankingsCache[gender];
 		}
 		
 		try {
 			const genderCode = gender === 'women' ? 0 : 1;
-			
-			console.log(`Fetching ${gender} rankings from FIVB API...`);
 			
 			// Fetch from pages 0 and 1 (50 teams each = 100 total)
 			const allTeams = [];
@@ -92,8 +89,6 @@ const RankingFetcher = (function() {
 			
 			for (const page of pages) {
 				const apiUrl = `${FIVB_API_BASE}/${genderCode}/${page}/50`;
-				
-				console.log(`  Fetching page ${page}: ${apiUrl}`);
 				
 				const response = await fetch(apiUrl);
 				
@@ -142,8 +137,6 @@ const RankingFetcher = (function() {
 			// Cache the results
 			rankingsCache[gender] = rankings;
 			rankingsCache.lastFetch[gender] = now;
-			
-			console.log(`✓ Fetched ${rankings.length} ${gender} rankings`);
 			return rankings;
 			
 		} catch (error) {
@@ -834,7 +827,6 @@ const RankingFetcher = (function() {
 				lastFetch: { men: null, women: null }
 			};
 		}
-		console.log('✓ Ranking cache cleared');
 	}
 	
 	/**

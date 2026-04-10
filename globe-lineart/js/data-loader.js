@@ -105,7 +105,6 @@ const DataLoader = (function() {
 			}
 			
 			rankingsCache[gender] = rankings;
-			console.log(`✓ Loaded ${gender} rankings:`, Object.keys(rankings).length, 'countries');
 			return rankings;
 			
 		} catch (error) {
@@ -162,10 +161,9 @@ const DataLoader = (function() {
 				const response = await fetch(mapUrl);
 				if (!response.ok) throw new Error(`HTTP ${response.status}`);
 				const mapData = await response.json();
-				console.log('✓ World map loaded from:', mapUrl);
 				return mapData;
 			} catch (error) {
-				console.warn(`Failed to load map from ${url}:`, error.message);
+				console.warn(`Failed to load map from ${mapUrl}:`, error.message);
 			}
 		}
 		

@@ -942,69 +942,6 @@ body.women {
 	text-shadow: 0 2px 8px rgba(255, 215, 0, 0.3);
 }
 
-/* Tooltip */
-.tooltip {
-	position: fixed;
-	background: rgba(0, 0, 0, 0.9);
-	color: #fff;
-	padding: 10px 16px;
-	border-radius: 8px;
-	font-size: 14px;
-	font-weight: 500;
-	pointer-events: none;
-	z-index: 1000;
-	display: none;
-	backdrop-filter: blur(8px);
-	border: 1px solid rgba(255, 255, 255, 0.1);
-	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-}
-
-/* Responsive Design */
-@media (max-width: 768px) {
-	.country-card {
-		left: 50%;
-		transform: translate(-50%, -50%) scale(0.9);
-		width: calc(100% - 40px);
-		max-width: 340px;
-	}
-	
-	.country-card.show {
-		transform: translate(-50%, -50%) scale(1);
-	}
-	
-	.controls {
-		top: 20px;
-		left: 20px;
-	}
-	
-	#genderToggle {
-		padding: 12px 20px;
-		font-size: 14px;
-	}
-}
-
-/* Gender Toggle Buttons */
-.gender-btn {
-	padding: 10px 24px;
-	font-weight: 600;
-	font-size: 14px;
-	border-radius: 8px;
-	border: 2px solid transparent;
-	transition: all 0.3s ease;
-	cursor: pointer;
-	color: white;
-}
-
-.gender-btn:hover {
-	transform: translateY(-2px);
-	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-}
-
-.gender-btn.active {
-	border-color: white;
-	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
-}
-
 /* Responsive */
 @media (max-width: 1200px) {
 	.country-card {
@@ -2665,7 +2602,8 @@ body.country-card-open #infoButtonWrap {
 		display: none;
 	}
 
-	#btnLeaderboard.control-chip {
+	#btnLeaderboard.control-chip,
+	#btnCalculator.control-chip {
 		min-width: 126px;
 	}
 }
@@ -2686,20 +2624,48 @@ body.country-card-open #infoButtonWrap {
 }
 
 @media (max-width: 768px) {
+	#controlsWrap {
+		top: 72px !important;
+		width: calc(100vw - 10px) !important;
+		max-width: 460px;
+		gap: 8px;
+		align-items: stretch;
+	}
+
 	#controlsWrap > button.control-chip {
 		min-width: calc(50% - 6px);
 		flex: 1 1 calc(50% - 6px);
+		height: 48px;
+		padding: 0 10px;
+	}
+
+	#btnTournament.control-chip {
+		justify-content: flex-start;
+	}
+
+	.control-chip-copy {
+		min-width: 0;
+	}
+
+	.control-chip-title,
+	.control-chip-subtitle {
+		max-width: 100%;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
 	}
 
 	.gender-toggle {
 		flex: 1 1 calc(100% - 4px);
 		width: 100%;
+		min-width: 0;
 	}
 
 	.gender-toggle .gender-btn {
 		min-width: 0;
 		flex: 1 1 50%;
 		width: auto;
+		height: 38px;
 		gap: 6px;
 	}
 
@@ -2720,11 +2686,38 @@ body.country-card-open #infoButtonWrap {
 	.country-card {
 		width: calc(100% - 16px) !important;
 		max-width: 370px !important;
+		max-height: min(56vh, 430px);
 		border-radius: 20px !important;
 	}
 
 	body.mobile-country-open .country-card {
 		bottom: 10px;
+	}
+}
+
+@media (max-width: 420px) {
+	#controlsWrap {
+		top: 68px !important;
+		width: calc(100vw - 8px) !important;
+		gap: 6px;
+	}
+
+	#controlsWrap > button.control-chip {
+		flex: 1 1 100%;
+		min-width: 100%;
+		height: 46px;
+	}
+
+	.control-chip-title {
+		font-size: 12px;
+	}
+
+	#btnTournament.is-vnl .control-chip-title {
+		font-size: 17px;
+	}
+
+	#btnTournament .control-chip-subtitle {
+		display: none;
 	}
 }
 

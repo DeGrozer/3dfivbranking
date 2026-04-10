@@ -19,11 +19,11 @@ Interactive 3D globe visualization of FIVB Senior World Rankings for volleyball.
 
 ## Usage
 
-`ash
+```bash
 git clone https://github.com/DeGrozer/volleyball-world-rankings.git
 cd volleyball-world-rankings/globe-lineart
 npx serve .
-`
+```
 
 ## Data Source
 

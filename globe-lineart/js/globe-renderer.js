@@ -56,7 +56,6 @@ const GlobeRenderer = (function() {
 	 */
 	function init(countriesData) {
 		countries = countriesData;
-		console.log('Initializing globe with', countries.length, 'countries');
 		updateZoomBounds();
 		
 		createSvgCanvas();
@@ -66,8 +65,6 @@ const GlobeRenderer = (function() {
 		renderGlobe();
 		setupInteractions();
 		startAnimation();
-		
-		console.log('✓ Globe rendering complete');
 	}
 	
 	/**
@@ -127,8 +124,6 @@ const GlobeRenderer = (function() {
 	 * Render all globe features (graticule, countries, interactions)
 	 */
 	function renderGlobe() {
-		console.log('Rendering globe with', countries.length, 'countries');
-		
 		// Add graticule lines (latitude/longitude grid)
 		const graticuleLines = d3.geoGraticule10();
 		g.append('path')
@@ -168,9 +163,6 @@ const GlobeRenderer = (function() {
 			.attr('stroke', 'none')
 			.style('cursor', 'pointer');
 		
-		console.log('✓ Rendered', lands.size(), 'land paths');
-		console.log('✓ Rendered', countryAreas.size(), 'interaction paths');
-
 		// Keep VNL hover markers on top of all map layers.
 		vnlBadgeGroup = g.append('g').attr('class', 'vnl-badges');
 		

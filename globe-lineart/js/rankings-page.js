@@ -12,6 +12,7 @@
 	const searchEl = document.getElementById('rankSearch');
 	const listEl = document.getElementById('rankingsBody');
 	const asOfEl = document.getElementById('asOfDate');
+	const calculatorLinkEl = document.getElementById('calculatorLink');
 
 	function parseParams() {
 		const params = new URLSearchParams(window.location.search);
@@ -115,6 +116,17 @@
 		womenTab.setAttribute('aria-selected', String(isWomen));
 		menTab.setAttribute('aria-selected', String(!isWomen));
 		document.body.classList.toggle('is-vnl-filter', isVnlFilterMode());
+		updateCalculatorLink();
+	}
+
+	function updateCalculatorLink() {
+		if (!calculatorLinkEl) return;
+		const params = new URLSearchParams();
+		params.set('gender', currentGender);
+		if (currentTournament) {
+			params.set('tournament', currentTournament);
+		}
+		calculatorLinkEl.href = `calculator.html?${params.toString()}`;
 	}
 
 	function formatAsOfDate(value) {

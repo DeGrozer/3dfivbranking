@@ -159,6 +159,14 @@ body {
 	gap: 10px;
 }
 
+.calc-link {
+	height: 40px;
+	padding: 0 12px;
+	border-radius: 10px;
+	font-size: 13px;
+	box-shadow: none;
+}
+
 .search-wrap {
 	display: inline-flex;
 	align-items: center;
@@ -427,6 +435,10 @@ body {
 		flex: 1;
 	}
 
+	.calc-link {
+		padding: 0 10px;
+	}
+
 	.search-wrap input {
 		min-width: 0;
 		width: 100%;
@@ -459,6 +471,10 @@ body {
 	.back-link {
 		padding: 8px 10px;
 		font-size: 12px;
+	}
+
+	.calc-link span {
+		display: none;
 	}
 
 	.table-shell {
