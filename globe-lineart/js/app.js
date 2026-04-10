@@ -1447,18 +1447,26 @@
 		const btnCalculator = document.getElementById('btnCalculator');
 		if (!btnCalculator) return;
 
+		if (btnCalculator.tagName === 'A') {
+			btnCalculator.href = buildCalculatorUrl();
+		}
+
 		btnCalculator.addEventListener('click', () => {
 			openCalculatorPage();
 		});
 	}
 
 	function openCalculatorPage() {
+		window.location.href = buildCalculatorUrl();
+	}
+
+	function buildCalculatorUrl() {
 		const params = new URLSearchParams();
 		params.set('gender', currentGender);
 		if (activeTournamentType) {
 			params.set('tournament', activeTournamentType);
 		}
-		window.location.href = `calculator.html?${params.toString()}`;
+		return `calculator.html?${params.toString()}`;
 	}
 
 	function setupTournamentModal() {
