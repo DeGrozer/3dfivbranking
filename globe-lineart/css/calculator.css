@@ -187,13 +187,13 @@ select {
 
 .match-actions {
 	display: flex;
-	gap: 6px;
+	gap: 0;
 	height: 40px;
 }
 
 .match-actions .tiny-btn {
-	flex: 1;
-	padding: 0 12px;
+	width: 100%;
+	padding: 0 14px;
 	font-size: 13px;
 	font-weight: 800;
 }
@@ -231,13 +231,51 @@ select {
 
 .extra-match-row {
 	display: grid;
-	grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 74px 86px;
+	grid-template-columns: 86px minmax(0, 1fr) minmax(0, 1fr) 64px 28px;
 	gap: 8px;
+	align-items: center;
+	padding: 7px 8px;
+	border: 1px solid #d8e3ef;
+	border-radius: 6px;
+	background: #f8fbff;
 }
 
-.extra-match-row select {
-	height: 36px;
+.extra-match-index {
 	font-size: 12px;
+	font-weight: 800;
+	color: #1d4a72;
+	letter-spacing: 0.2px;
+}
+
+.extra-match-team,
+.extra-match-score {
+	font-size: 13px;
+	font-weight: 700;
+	color: #0f2f4e;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.extra-match-score {
+	text-align: center;
+}
+
+.extra-match-remove {
+	width: 24px;
+	height: 24px;
+	border: none;
+	background: transparent;
+	color: #9a2748;
+	font-size: 18px;
+	font-weight: 800;
+	line-height: 1;
+	cursor: pointer;
+	padding: 0;
+}
+
+.extra-match-remove:hover {
+	color: #e61556;
 }
 
 .match-labels span:nth-child(3) {
@@ -793,6 +831,15 @@ select {
 
 	.extra-match-row {
 		grid-template-columns: 1fr;
+		gap: 4px;
+	}
+
+	.extra-match-score {
+		text-align: left;
+	}
+
+	.extra-match-remove {
+		justify-self: end;
 	}
 
 	.vs-badge {

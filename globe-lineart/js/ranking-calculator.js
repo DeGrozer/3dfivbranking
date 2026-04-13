@@ -23,6 +23,8 @@
 		tournament: 'vnl',
 		rankings: [],
 		selectedOutcomeKey: '3-0',
+		matchups: [],
+		matchupResults: [],
 		extraMatchesCount: 0,
 		hasCalculated: false,
 		teamAName: '',
@@ -50,12 +52,16 @@
 		extraMatchCards: document.getElementById('extraMatchCards'),
 		extraMatches: document.getElementById('extraMatches'),
 		addMatchBtn: document.getElementById('addMatchBtn'),
-		clearMatchesBtn: document.getElementById('clearMatchesBtn'),
 		howHelp: document.getElementById('howHelp'),
 		howHelpBtn: document.getElementById('howHelpBtn'),
 		toRankings: document.getElementById('toRankings'),
 		toGlobe: document.getElementById('toGlobe')
 	};
+
+	function updateCalculateVisibility() {
+		if (!els.calculateBtn) return;
+		els.calculateBtn.classList.add('hidden');
+	}
 
 	function parseParams() {
 		const params = new URLSearchParams(window.location.search);
@@ -115,8 +121,8 @@
 			return;
 		}
 
-		const markup = extras.map((detail, extraIdx) => {
-			const displayMatchNumber = extraIdx + 1;
+		const markup = extras.map((detail) => {
+			const displayMatchNumber = detail.order;
 			const teamA = state.rankings[detail.idxA];
 			const teamB = state.rankings[detail.idxB];
 			if (!teamA || !teamB) return '';
@@ -129,7 +135,6 @@
 				<section class="extra-match-block" aria-label="Match ${displayMatchNumber}">
 					<div class="extra-match-head">
 						<p class="extra-match-title">Match ${displayMatchNumber}</p>
-						<button class="tiny-btn ghost extra-match-clear" type="button" data-clear-extra-row="${escapeHtml(detail.rowId || '')}">Clear</button>
 					</div>
 					<div class="extra-match-grid">
 						<article class="team-panel">
@@ -346,6 +351,7 @@
 
 	function resetCalculatedOutput() {
 		state.hasCalculated = false;
+		state.matchupResults = [];
 		setMatchVisualVisibility(false);
 		if (els.teamAFlagStage) els.teamAFlagStage.innerHTML = '';
 		if (els.teamBFlagStage) els.teamBFlagStage.innerHTML = '';
@@ -355,6 +361,10 @@
 			els.extraMatchCards.innerHTML = '';
 			els.extraMatchCards.classList.add('hidden');
 		}
+		if (els.cardsRow) {
+			els.cardsRow.classList.remove('hidden');
+		}
+		renderAddedMatchups();
 	}
 
 	function renderBaselineRankingStage() {
@@ -464,122 +474,139 @@
 		}
 	}
 
-	function extraOutcomeOptionsMarkup() {
-		return RESULT_MAP.map(item => `<option value="${item.key}">${item.key}</option>`).join('');
-	}
+	function renderAddedMatchups() {
+		if (!els.extraMatches) return;
+		if (!state.matchups.length) {
+			els.extraMatches.innerHTML = '';
+			return;
+		}
 
-	function extraTeamOptionsMarkup() {
-		const teamOptions = (els.teamA?.innerHTML || '');
-		return `<option value="" selected>Team</option>${teamOptions}`;
-	}
+		els.extraMatches.innerHTML = state.matchups.map((match, index) => {
+			const matchNum = index + 1;
+			const teamA = state.rankings[match.idxA];
+			const teamB = state.rankings[match.idxB];
+			if (!teamA || !teamB) return '';
 
-	function extraOutcomeSelectMarkup() {
-		return `<option value="" selected>Score</option>${extraOutcomeOptionsMarkup()}`;
+			const teamAName = teamA.federationName || 'Team A';
+			const teamBName = teamB.federationName || 'Team B';
+			const currentRankA = Number(teamA.rank);
+			const currentRankB = Number(teamB.rank);
+
+			// Get result card data if calculation has been done
+			let resultCard = '';
+			if (state.hasCalculated && state.matchupResults && state.matchupResults[index]) {
+				const result = state.matchupResults[index];
+				const deltaAClass = deltaClass(result.deltaA);
+				const deltaBClass = deltaClass(result.deltaB);
+				const deltaAText = `${result.deltaA >= 0 ? '+' : ''}${result.deltaA.toFixed(3)} pts`;
+				const deltaBText = `${result.deltaB >= 0 ? '+' : ''}${result.deltaB.toFixed(3)} pts`;
+				const rankTransitionA = `#${currentRankA} → #${result.rankA}`;
+				const rankTransitionB = `#${currentRankB} → #${result.rankB}`;
+
+				resultCard = `
+					<section class="extra-match-block" aria-label="Match ${matchNum}">
+						<div class="extra-match-grid">
+							<article class="team-panel">
+								<div class="stage-card flag-stage">
+									${flagMarkup(teamA)}
+									<div>
+										<div class="flag-team-name">${escapeHtml(teamAName)}</div>
+										<div class="flag-team-meta">CURRENT RANK #${currentRankA}</div>
+									</div>
+								</div>
+								<div class="stage-card result-stage">
+									<p class="result-title">Result</p>
+									<p class="result-delta ${deltaAClass}">${rankTransitionA}</p>
+									<p class="result-delta ${deltaAClass}">● ${deltaAText}</p>
+								</div>
+							</article>
+							<div class="vs-column extra-vs-column">
+								<div class="vs-badge">VS</div>
+							</div>
+							<article class="team-panel">
+								<div class="stage-card flag-stage">
+									${flagMarkup(teamB)}
+									<div>
+										<div class="flag-team-name">${escapeHtml(teamBName)}</div>
+										<div class="flag-team-meta">CURRENT RANK #${currentRankB}</div>
+									</div>
+								</div>
+								<div class="stage-card result-stage">
+									<p class="result-title">Result</p>
+									<p class="result-delta ${deltaBClass}">${rankTransitionB}</p>
+									<p class="result-delta ${deltaBClass}">● ${deltaBText}</p>
+								</div>
+							</article>
+						</div>
+					</section>
+				`;
+			}
+
+			return `
+				<div class="extra-match-row" data-row-id="${escapeHtml(match.rowId)}">
+					<span class="extra-match-index">Match #${matchNum}</span>
+					<span class="extra-match-team">${escapeHtml(teamAName)}</span>
+					<span class="extra-match-team">${escapeHtml(teamBName)}</span>
+					<span class="extra-match-score">${escapeHtml(match.outcomeKey)}</span>
+					<button class="extra-match-remove" type="button" aria-label="Remove matchup" data-remove-match="${escapeHtml(match.rowId)}">&times;</button>
+				</div>
+				${resultCard}
+			`;
+		}).join('');
 	}
 
 	function createExtraMatchRow() {
-		if (!els.extraMatches) return;
-		state.extraMatchesCount += 1;
-		const rowId = `extra-match-${state.extraMatchesCount}`;
-		const teamOptions = extraTeamOptionsMarkup();
+		const idxA = Number.parseInt(String(els.teamA?.value ?? ''), 10);
+		const idxB = Number.parseInt(String(els.teamB?.value ?? ''), 10);
+		const outcomeKey = String(els.outcomeSelect?.value || state.selectedOutcomeKey || '3-0');
 
-		const row = document.createElement('div');
-		row.className = 'extra-match-row';
-		row.dataset.rowId = rowId;
-		row.innerHTML = `
-			<select class="extra-team-a">${teamOptions}</select>
-			<select class="extra-team-b">${teamOptions}</select>
-			<select class="extra-outcome">${extraOutcomeSelectMarkup()}</select>
-			<button class="tiny-btn remove" type="button">Remove</button>
-		`;
-
-		const selectA = row.querySelector('.extra-team-a');
-		const selectB = row.querySelector('.extra-team-b');
-		const selectOutcome = row.querySelector('.extra-outcome');
-
-		ensureDistinctPair(selectA, selectB);
-
-		if (selectA) selectA.addEventListener('change', () => {
-			ensureDistinctPair(selectA, selectB);
-			if (state.hasCalculated) calculate();
-		});
-		if (selectB) selectB.addEventListener('change', () => {
-			ensureDistinctPair(selectA, selectB);
-			if (state.hasCalculated) calculate();
-		});
-		if (selectOutcome) selectOutcome.addEventListener('change', () => {
-			if (state.hasCalculated) calculate();
-		});
-
-		const removeBtn = row.querySelector('.remove');
-		if (removeBtn) {
-			removeBtn.addEventListener('click', () => {
-				row.remove();
-				calculate();
-			});
+		if (!Number.isInteger(idxA) || !Number.isInteger(idxB) || idxA === idxB) {
+			if (els.selectedOutcomeLabel) {
+				els.selectedOutcomeLabel.textContent = 'Select two different teams first.';
+			}
+			return;
 		}
 
-		els.extraMatches.appendChild(row);
+		state.extraMatchesCount += 1;
+		state.matchups.push({
+			idxA,
+			idxB,
+			outcomeKey,
+			rowId: `match-${state.extraMatchesCount}`
+		});
+		renderAddedMatchups();
+		calculate();
 	}
 
 	function clearExtraMatchRows() {
-		if (!els.extraMatches) return;
-		els.extraMatches.innerHTML = '';
+		state.matchups = [];
+		renderAddedMatchups();
+		updateCalculateVisibility();
 	}
 
 	function refreshExtraMatchRowOptions() {
-		if (!els.extraMatches) return;
-		const teamOptions = extraTeamOptionsMarkup();
-		const outcomeOptions = extraOutcomeSelectMarkup();
-		const rows = Array.from(els.extraMatches.querySelectorAll('.extra-match-row'));
-		rows.forEach(row => {
-			const selectA = row.querySelector('.extra-team-a');
-			const selectB = row.querySelector('.extra-team-b');
-			const selectOutcome = row.querySelector('.extra-outcome');
-			const prevA = selectA?.value;
-			const prevB = selectB?.value;
-			const prevOutcome = selectOutcome?.value;
-
-			if (selectA) {
-				selectA.innerHTML = teamOptions;
-				if (prevA != null) selectA.value = prevA;
-				if (!selectA.value) selectA.value = '';
-			}
-			if (selectB) {
-				selectB.innerHTML = teamOptions;
-				if (prevB != null) selectB.value = prevB;
-				if (!selectB.value) selectB.value = '';
-			}
-			if (selectOutcome) {
-				selectOutcome.innerHTML = outcomeOptions;
-				if (prevOutcome != null) selectOutcome.value = prevOutcome;
-				if (!selectOutcome.value) selectOutcome.value = '';
-			}
-			ensureDistinctPair(selectA, selectB);
-		});
+		state.matchups = state.matchups.filter(match => (
+			Number.isInteger(match.idxA)
+			&& Number.isInteger(match.idxB)
+			&& match.idxA >= 0
+			&& match.idxB >= 0
+			&& match.idxA < state.rankings.length
+			&& match.idxB < state.rankings.length
+			&& match.idxA !== match.idxB
+			&& RESULT_MAP.some(result => result.key === match.outcomeKey)
+		));
+		renderAddedMatchups();
+		updateCalculateVisibility();
 	}
 
 	function getAllMatches() {
-		const primaryA = Number(els.teamA.value);
-		const primaryB = Number(els.teamB.value);
-		const primary = [{
-			idxA: primaryA,
-			idxB: primaryB,
-			outcomeKey: state.selectedOutcomeKey,
-			isPrimary: true,
-			rowId: 'primary'
-		}];
-
-		if (!els.extraMatches) return primary;
-		const extra = Array.from(els.extraMatches.querySelectorAll('.extra-match-row')).map(row => {
-			const idxA = Number.parseInt(String(row.querySelector('.extra-team-a')?.value ?? ''), 10);
-			const idxB = Number.parseInt(String(row.querySelector('.extra-team-b')?.value ?? ''), 10);
-			const outcomeKey = String(row.querySelector('.extra-outcome')?.value || '3-0');
-			const rowId = String(row.dataset.rowId || '');
-			return { idxA, idxB, outcomeKey, isPrimary: false, rowId };
-		});
-
-		return primary.concat(extra);
+		return state.matchups.map(match => ({
+			idxA: match.idxA,
+			idxB: match.idxB,
+			outcomeKey: match.outcomeKey,
+			isPrimary: false,
+			rowId: match.rowId
+		}));
 	}
 
 	function renderTeamOptions() {
@@ -612,28 +639,32 @@
 	}
 
 	function calculate() {
-		ensureDistinctTeams();
-		const selected = getSelectedTeams();
-		if (!selected) {
+		const matches = getAllMatches();
+		if (!matches.length) {
+			resetCalculatedOutput();
+			renderBaselineRankingStage();
 			if (els.selectedOutcomeLabel) {
-				els.selectedOutcomeLabel.textContent = 'Select two different teams.';
+				els.selectedOutcomeLabel.textContent = 'Add at least one matchup to calculate.';
 			}
 			return;
 		}
 
-		const { teamA, teamB, idxA, idxB } = selected;
+		const latestMatch = matches[matches.length - 1];
+		const latestTeamA = state.rankings[latestMatch.idxA];
+		const latestTeamB = state.rankings[latestMatch.idxB];
+		if (!latestTeamA || !latestTeamB) return;
+
 		state.hasCalculated = true;
 		setMatchVisualVisibility(true);
-		refreshOutcomeSelectLabels(teamA?.federationName, teamB?.federationName);
+		refreshOutcomeSelectLabels(latestTeamA?.federationName, latestTeamB?.federationName);
 		const weight = getWeight();
 
 		setMetaLine(weight);
 
 		const pointsByIdx = state.rankings.map(team => Number(team.points || 0));
-		const matches = getAllMatches();
 		const matchDetails = [];
-		let primaryMatchDeltaA = 0;
-		let primaryMatchDeltaB = 0;
+		let latestMatchProjection = null;
+		let projectedTopForLatestMatch = [];
 
 		for (let i = 0; i < matches.length; i += 1) {
 			const match = matches[i];
@@ -647,6 +678,7 @@
 			const teamBName = state.rankings[match.idxB]?.federationName || 'Team B';
 			const resultLabel = describeOutcome(match.outcomeKey, teamAName, teamBName);
 
+			// Cumulative calculation: each new match starts from updated points.
 			const currentA = Number(pointsByIdx[match.idxA] || 0);
 			const currentB = Number(pointsByIdx[match.idxB] || 0);
 			const model = getExpectedModel(currentA, currentB);
@@ -654,9 +686,32 @@
 			const didAWin = result.rA > 0;
 			const deltaA = round3(computeDelta(rawDeltaA, didAWin));
 			const deltaB = round3(-deltaA);
+			const projectedPointsA = round3(currentA + deltaA);
+			const projectedPointsB = round3(currentB + deltaB);
 
-			pointsByIdx[match.idxA] = round3(currentA + deltaA);
-			pointsByIdx[match.idxB] = round3(currentB + deltaB);
+			pointsByIdx[match.idxA] = projectedPointsA;
+			pointsByIdx[match.idxB] = projectedPointsB;
+
+			const projectedSnapshot = getProjectedStandingsFromPoints(
+				state.rankings,
+				pointsByIdx,
+				state.rankings.length || 200
+			);
+			const projectedRankMap = projectedSnapshot.rankMap;
+			projectedTopForLatestMatch = projectedSnapshot.top;
+
+			latestMatchProjection = {
+				idxA: match.idxA,
+				idxB: match.idxB,
+				outcomeKey: match.outcomeKey,
+				displayLabel: resultLabel,
+				rankA: projectedRankMap.get(match.idxA),
+				rankB: projectedRankMap.get(match.idxB),
+				pointsA: projectedPointsA,
+				pointsB: projectedPointsB,
+				deltaA,
+				deltaB
+			};
 
 			matchDetails.push({
 				order: i + 1,
@@ -666,29 +721,29 @@
 				teamA: teamAName,
 				teamB: teamBName,
 				result: resultLabel,
+				rankA: projectedRankMap.get(match.idxA),
+				rankB: projectedRankMap.get(match.idxB),
+				pointsA: projectedPointsA,
+				pointsB: projectedPointsB,
 				deltaA,
 				deltaB
 			});
-
-			if (match.isPrimary) {
-				primaryMatchDeltaA = deltaA;
-				primaryMatchDeltaB = deltaB;
-			}
 		}
 
-		const projected = getProjectedStandingsFromPoints(state.rankings, pointsByIdx, state.rankings.length || 200);
+		if (!latestMatchProjection) return;
+
 		const selectedOutcome = {
-			key: state.selectedOutcomeKey,
-			displayLabel: describeOutcome(state.selectedOutcomeKey, teamA.federationName, teamB.federationName),
-			rankA: projected.rankMap.get(idxA),
-			rankB: projected.rankMap.get(idxB),
-			pointsA: Number(pointsByIdx[idxA] || 0),
-			pointsB: Number(pointsByIdx[idxB] || 0),
-			deltaA: round3(Number(pointsByIdx[idxA] || 0) - Number(teamA.points || 0)),
-			deltaB: round3(Number(pointsByIdx[idxB] || 0) - Number(teamB.points || 0)),
-			primaryDeltaA: primaryMatchDeltaA,
-			primaryDeltaB: primaryMatchDeltaB,
-			projectedTop: projected.top
+			key: latestMatchProjection.outcomeKey,
+			displayLabel: latestMatchProjection.displayLabel,
+			rankA: latestMatchProjection.rankA,
+			rankB: latestMatchProjection.rankB,
+			pointsA: latestMatchProjection.pointsA,
+			pointsB: latestMatchProjection.pointsB,
+			deltaA: latestMatchProjection.deltaA,
+			deltaB: latestMatchProjection.deltaB,
+			primaryDeltaA: latestMatchProjection.deltaA,
+			primaryDeltaB: latestMatchProjection.deltaB,
+			projectedTop: projectedTopForLatestMatch
 		};
 
 		state.selectedOutcomeKey = String(selectedOutcome.key || '3-0');
@@ -696,23 +751,29 @@
 			els.outcomeSelect.value = state.selectedOutcomeKey;
 		}
 
-		state.teamAName = teamA.federationName;
-		state.teamBName = teamB.federationName;
+		state.teamAName = latestTeamA.federationName;
+		state.teamBName = latestTeamB.federationName;
 
-		renderTeamFlagStage(els.teamAFlagStage, teamA);
-		renderTeamFlagStage(els.teamBFlagStage, teamB);
-		renderTeamResultStage(els.teamAResultStage, teamA, selectedOutcome.rankA, selectedOutcome.pointsA, selectedOutcome.deltaA);
-		renderTeamResultStage(els.teamBResultStage, teamB, selectedOutcome.rankB, selectedOutcome.pointsB, selectedOutcome.deltaB);
+		// Hide the old main cards area - use unified extraMatches template for all
+		if (els.cardsRow) {
+			els.cardsRow.classList.add('hidden');
+		}
 		if (els.selectedOutcomeLabel) {
 			els.selectedOutcomeLabel.textContent = selectedOutcome.displayLabel;
 		}
-		renderExtraMatchCards(matchDetails);
-		renderRankingStage(teamA, teamB, selectedOutcome.projectedTop, new Set([idxA, idxB]));
+		state.matchupResults = matchDetails;
+		renderAddedMatchups();
+		const focusIdxSet = new Set(matches.flatMap(match => [match.idxA, match.idxB]));
+		renderRankingStage(latestTeamA, latestTeamB, selectedOutcome.projectedTop, focusIdxSet);
 	}
 
 	async function loadRankings() {
 		try {
 			state.rankings = await RankingFetcher.fetchCurrentRankings(state.gender);
+			state.matchups = [];
+			state.extraMatchesCount = 0;
+			renderAddedMatchups();
+			updateCalculateVisibility();
 			renderTeamOptions();
 			setMetaLine(getWeight());
 			if (!state.hasCalculated) {
@@ -785,11 +846,21 @@
 			});
 		}
 
-		if (els.clearMatchesBtn) {
-			els.clearMatchesBtn.addEventListener('click', () => {
-				clearExtraMatchRows();
-				resetCalculatedOutput();
-				renderBaselineRankingStage();
+		if (els.extraMatches) {
+			els.extraMatches.addEventListener('click', (event) => {
+				const button = event.target.closest('[data-remove-match]');
+				if (!button) return;
+				const rowId = String(button.getAttribute('data-remove-match') || '');
+				if (!rowId) return;
+				state.matchups = state.matchups.filter(match => match.rowId !== rowId);
+				renderAddedMatchups();
+				updateCalculateVisibility();
+				if (state.matchups.length) {
+					calculate();
+				} else {
+					resetCalculatedOutput();
+					renderBaselineRankingStage();
+				}
 			});
 		}
 
@@ -836,6 +907,7 @@
 	async function init() {
 		parseParams();
 		populateOutcomeOptions();
+		updateCalculateVisibility();
 		resetCalculatedOutput();
 		els.gender.value = state.gender;
 		els.tournament.value = state.tournament;

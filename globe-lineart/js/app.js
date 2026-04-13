@@ -1501,11 +1501,60 @@
 
 	function setupTournamentToggle() {
 		const btnTournament = document.getElementById('btnTournament');
+		const activeChip = document.getElementById('tournamentActiveChip');
+		const clearVnlControl = document.getElementById('tournamentActiveClear');
 		if (!btnTournament) return;
 
-		btnTournament.addEventListener('click', () => {
+		updateTournamentButtonState();
+
+		btnTournament.addEventListener('click', (event) => {
+			if (event.target.closest('#tournamentActiveClear')) return;
 			showTournamentPickerModal();
 		});
+
+		if (clearVnlControl) {
+			clearVnlControl.addEventListener('pointerdown', (event) => {
+				event.preventDefault();
+				event.stopPropagation();
+			});
+
+			clearVnlControl.addEventListener('click', async (event) => {
+				event.preventDefault();
+				event.stopPropagation();
+				await applyTournamentSelection('all');
+			});
+		}
+
+		if (activeChip) {
+			activeChip.addEventListener('click', (event) => {
+				if (event.target.closest('#tournamentActiveClear')) return;
+				showTournamentPickerModal();
+			});
+		}
+	}
+
+	function updateTournamentButtonState() {
+		const btnTournament = document.getElementById('btnTournament');
+		if (!btnTournament) return;
+
+		const isVnl = isVnlTournamentMode();
+		const icon = btnTournament.querySelector('i:not([style*="display: none"])') || btnTournament.querySelector('i');
+		const label = btnTournament.querySelector('.menu-label');
+		const activeChip = document.getElementById('tournamentActiveChip');
+
+		btnTournament.classList.remove('active', 'is-vnl');
+		btnTournament.setAttribute('aria-label', 'Open tournament filter');
+
+		if (icon) {
+			icon.className = 'fa-solid fa-filter';
+		}
+		if (label) {
+			label.hidden = false;
+			label.textContent = 'Tournament';
+		}
+		if (activeChip) {
+			activeChip.hidden = !isVnl;
+		}
 	}
 
 	async function applyTournamentSelection(type) {
@@ -1527,25 +1576,7 @@
 			}
 		}
 		document.body.classList.toggle('tournament-vnl', isVnlTournamentMode(activeTournamentType));
-		const btnTournament = document.getElementById('btnTournament');
-		if (btnTournament) {
-			const isVnl = isVnlTournamentMode();
-			const icon = btnTournament.querySelector('.control-chip-icon i');
-			const title = btnTournament.querySelector('.control-chip-title');
-			const subtitle = btnTournament.querySelector('.control-chip-subtitle');
-			btnTournament.classList.toggle('active', isVnl);
-			btnTournament.classList.toggle('is-vnl', isVnl);
-			btnTournament.setAttribute('aria-label', isVnl ? 'VNL filter active' : 'Open tournament filter');
-			if (icon) {
-				icon.className = isVnl ? 'fa-solid fa-volleyball' : 'fa-solid fa-filter';
-			}
-			if (title) {
-				title.textContent = isVnl ? 'VNL' : 'Tournament';
-			}
-			if (subtitle) {
-				subtitle.textContent = isVnl ? 'Volleyball Nations League' : 'All Countries';
-			}
-		}
+		updateTournamentButtonState();
 
 		window.getVnlBadgeInfo = getVnlCountryInfo;
 		window.isTournamentVnlModeEnabled = () => isVnlTournamentMode();
@@ -1681,11 +1712,6 @@
 
 		content.innerHTML = `
 			<div class="tournament-picker-grid">
-				<button type="button" class="tournament-select-btn ${activeTournamentType === '' ? 'selected' : ''}" data-tournament-select="all">
-					<i class="fa-solid fa-filter"></i>
-					<span class="tournament-select-title">Clear Filter</span>
-					<span class="tournament-select-subtitle">Show all countries</span>
-				</button>
 				<button type="button" class="tournament-select-btn ${activeTournamentType === 'vnl' ? 'selected' : ''}" data-tournament-select="vnl">
 					<i class="fa-solid fa-volleyball"></i>
 					<span class="tournament-select-title tournament-select-title-vnl">VNL</span>
@@ -1930,16 +1956,27 @@
 	function setupZoomControls() {
 		const zoomInBtn = document.getElementById('zoomIn');
 		const zoomOutBtn = document.getElementById('zoomOut');
+		const titleWrap = document.getElementById('titleWrap');
+
+		const syncTitleVisibilityWithZoom = () => {
+			if (!titleWrap || typeof GlobeRenderer.getCurrentScale !== 'function' || typeof GlobeRenderer.getDefaultScale !== 'function') return;
+			const hideTitle = GlobeRenderer.getCurrentScale() > GlobeRenderer.getDefaultScale();
+			titleWrap.classList.toggle('zoom-hidden', hideTitle);
+		};
+
+		syncTitleVisibilityWithZoom();
 		
 		if (zoomInBtn) {
 			zoomInBtn.addEventListener('click', () => {
 				GlobeRenderer.zoomIn();
+				syncTitleVisibilityWithZoom();
 			});
 		}
 		
 		if (zoomOutBtn) {
 			zoomOutBtn.addEventListener('click', () => {
 				GlobeRenderer.zoomOut();
+				syncTitleVisibilityWithZoom();
 			});
 		}
 	}

@@ -589,6 +589,14 @@ const GlobeRenderer = (function() {
 		projection.scale(currentScale);
 		render();
 	}
+
+	function getCurrentScale() {
+		return currentScale;
+	}
+
+	function getDefaultScale() {
+		return GLOBE_CONSTANTS.scale;
+	}
 	
 	/**
 	 * Animation loop
@@ -616,6 +624,8 @@ const GlobeRenderer = (function() {
 		selectCountryByName,
 		refreshTournamentMarkers: render,
 		zoomIn,
-		zoomOut
+		zoomOut,
+		getCurrentScale,
+		getDefaultScale
 	};
 })();
