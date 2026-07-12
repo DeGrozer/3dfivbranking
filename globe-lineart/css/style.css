@@ -53,6 +53,46 @@ body.women {
 	--lb-hover: rgba(251, 191, 201, 0.1);
 }
 
+.splash-screen {
+	position: fixed;
+	z-index: 9999;
+	top: 0; left: 0; right: 0; bottom: 0;
+	background: #7B3B36;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	align-items: center;
+}
+
+.splash-content {
+	text-align: center;
+	color: #fff;
+}
+
+.splash-date {
+	position: absolute;
+	left: 32px;
+	bottom: 32px;
+	color: #fff;
+	font-size: 1.2em;
+	opacity: 0.8;
+}
+
+.persistent-date {
+	position: fixed;
+	left: 32px;
+	bottom: 32px;
+	color: #fff;
+	font-size: 1.2em;
+	opacity: 0.8;
+	z-index: 10;
+	pointer-events: none;
+}
+
+#zoomInBtn, #zoomOutBtn {
+	transition: opacity 0.3s;
+}
+
 .startup-overlay {
 	position: fixed;
 	inset: 0;
@@ -737,6 +777,11 @@ body.women {
 }
 
 #titleWrap.zoom-hidden {
+	opacity: 0;
+	pointer-events: none;
+}
+
+body.country-card-open #zoomControlsWrap {
 	opacity: 0;
 	pointer-events: none;
 }
@@ -2714,10 +2759,6 @@ body.women {
 	background: #991b1b;
 	color: #fff1f2;
 	animation: bannedShake 1.6s ease-in-out infinite;
-}
-
-.team-status-panel.banned .team-status-copy h4 {
-	color: #991b1b;
 }
 
 .team-status-panel.inactive {

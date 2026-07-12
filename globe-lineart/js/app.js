@@ -776,10 +776,7 @@
 			olympics: { gold: 4, silver: 0, bronze: 2 },
 			worldChampionship: { gold: 6, silver: 2, bronze: 2 },
 			vnl: { gold: 2, silver: 3, bronze: 5 },
-			continental: { name: 'CEV', gold: 16, silver: 5, bronze: 3 },
-			banned: true,
-			lastRank: 1,
-			bannedYear: 2022
+			continental: { name: 'CEV', gold: 16, silver: 5, bronze: 3 }
 		},
 		// Japan
 		'JPN': {
@@ -856,10 +853,7 @@
 			olympics: { gold: 0, silver: 0, bronze: 0 },
 			worldChampionship: { gold: 0, silver: 0, bronze: 0 },
 			vnl: { gold: 0, silver: 0, bronze: 0 },
-			continental: { name: 'CEV', gold: 0, silver: 1, bronze: 2 },
-			banned: true,
-			lastRank: 15,
-			bannedYear: 2022
+			continental: { name: 'CEV', gold: 0, silver: 1, bronze: 2 }
 		}
 	};
 
@@ -2067,7 +2061,6 @@
 		const shouldRenderVnlTopBanner = isVnlMode && !!vnlStatus;
 		const countryCode = resolveCountryCode(countryName, ranking);
 		const teamMeta = medalsData[countryCode] || null;
-		const isBannedTeam = !!teamMeta?.banned;
 		card.classList.remove(
 			'world-rank-gold-card',
 			'world-rank-silver-card',
@@ -2111,19 +2104,7 @@
 		if (!cardBody) return;
 		
 		let bodyHtml = '<p class="text-gray-500 text-sm">No ranking data available</p>';
-		if (isBannedTeam) {
-			const bannedYear = Number(teamMeta?.bannedYear);
-			const bannedYearLabel = Number.isFinite(bannedYear) ? ` (${bannedYear})` : '';
-			bodyHtml = `
-				<div class="team-status-panel banned">
-					<div class="team-status-icon"><i class="fa-solid fa-skull-crossbones" aria-hidden="true"></i></div>
-					<div class="team-status-copy">
-						<h4>Banned / Suspended Team${bannedYearLabel}</h4>
-						<p>Competition activity is blocked due to war-related sanctions (Russia/Belarus suspension policy).</p>
-					</div>
-				</div>
-			`;
-		} else if (ranking) {
+		if (ranking) {
 			const safeRank = Number.isFinite(ranking.rank) ? ranking.rank : '—';
 			const safePoints = Number.isFinite(ranking.points) ? ranking.points.toFixed(2) : '—';
 			const matchHistoryHtml = generateMatchHistory(ranking.pointsProgression);
@@ -2362,17 +2343,6 @@
 			return;
 		}
 		
-		// Check if country is banned
-		let bannedHtml = '';
-		if (countryData.banned) {
-			bannedHtml = `
-				<div class="banned-status">
-					<div class="status-text">🔴 Banned from Competition</div>
-					<div class="last-rank">Last Recorded: #${countryData.lastRank} (${countryData.bannedYear})</div>
-				</div>
-			`;
-		}
-		
 		// Build medals HTML
 		const { olympics, worldChampionship, vnl, continental } = countryData;
 		
@@ -2415,7 +2385,7 @@
 				</div>
 			</div>
 			
-			${bannedHtml}
+			${reinstatedHtml}
 		`;
 		
 		// Show card with animation

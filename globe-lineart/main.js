@@ -86,53 +86,63 @@
 		'804': 'Ukraine', '807': 'North Macedonia', '818': 'Egypt', '826': 'United Kingdom',
 		'834': 'Tanzania', '840': 'United States', '854': 'Burkina Faso', '858': 'Uruguay',
 		'860': 'Uzbekistan', '862': 'Venezuela', '882': 'Samoa', '887': 'Yemen',
-		'894': 'Zambia'
-	};
 
-	// ISO3 to ISO2 country code mapping for flags
-	const iso3ToIso2 = {
-		'004': 'AF', '008': 'AL', '012': 'DZ', '016': 'AS', '020': 'AD', '024': 'AO',
-		'028': 'AG', '031': 'AZ', '032': 'AR', '036': 'AU', '040': 'AT', '044': 'BS',
-		'048': 'BH', '050': 'BD', '051': 'AM', '052': 'BB', '056': 'BE', '060': 'BM',
-		'064': 'BT', '068': 'BO', '070': 'BA', '072': 'BW', '076': 'BR', '084': 'BZ',
-		'090': 'SB', '096': 'BN', '100': 'BG', '104': 'MM', '108': 'BI', '112': 'BY',
-		'116': 'KH', '120': 'CM', '124': 'CA', '132': 'CV', '140': 'CF', '144': 'LK',
-		'148': 'TD', '152': 'CL', '156': 'CN', '170': 'CO', '174': 'KM', '178': 'CG',
-		'180': 'CD', '188': 'CR', '191': 'HR', '192': 'CU', '196': 'CY', '203': 'CZ',
-		'204': 'BJ', '208': 'DK', '212': 'DM', '214': 'DO', '218': 'EC', '222': 'SV',
-		'226': 'GQ', '231': 'ET', '232': 'ER', '233': 'EE', '242': 'FJ', '246': 'FI',
-		'250': 'FR', '254': 'GF', '258': 'PF', '266': 'GA', '268': 'GE', '270': 'GM',
-		'276': 'DE', '288': 'GH', '300': 'GR', '304': 'GL', '308': 'GD', '320': 'GT',
-		'324': 'GN', '328': 'GY', '332': 'HT', '340': 'HN', '344': 'HK', '348': 'HU',
-		'352': 'IS', '356': 'IN', '360': 'ID', '364': 'IR', '368': 'IQ', '372': 'IE',
-		'376': 'IL', '380': 'IT', '384': 'CI', '388': 'JM', '392': 'JP', '398': 'KZ',
-		'400': 'JO', '404': 'KE', '408': 'KP', '410': 'KR', '414': 'KW', '417': 'KG',
-		'418': 'LA', '422': 'LB', '426': 'LS', '428': 'LV', '430': 'LR', '434': 'LY',
-		'440': 'LT', '442': 'LU', '446': 'MO', '450': 'MG', '454': 'MW', '458': 'MY',
-		'462': 'MV', '466': 'ML', '470': 'MT', '478': 'MR', '480': 'MU', '484': 'MX',
-		'496': 'MN', '498': 'MD', '499': 'ME', '504': 'MA', '508': 'MZ', '512': 'OM',
-		'516': 'NA', '524': 'NP', '528': 'NL', '554': 'NZ', '558': 'NI', '562': 'NE',
-		'566': 'NG', '578': 'NO', '586': 'PK', '591': 'PA', '598': 'PG', '600': 'PY',
-		'604': 'PE', '608': 'PH', '616': 'PL', '620': 'PT', '624': 'GW', '626': 'TL',
-		'630': 'PR', '634': 'QA', '642': 'RO', '643': 'RU', '646': 'RW', '682': 'SA',
-		'686': 'SN', '688': 'RS', '690': 'SC', '694': 'SL', '702': 'SG', '703': 'SK',
-		'704': 'VN', '705': 'SI', '706': 'SO', '710': 'ZA', '716': 'ZW', '724': 'ES',
-		'728': 'SS', '729': 'SD', '732': 'EH', '736': 'SD', '740': 'SR', '748': 'SZ',
-		'752': 'SE', '756': 'CH', '760': 'SY', '762': 'TJ', '764': 'TH', '768': 'TG',
-		'776': 'TO', '780': 'TT', '784': 'AE', '788': 'TN', '792': 'TR', '795': 'TM',
-		'800': 'UG', '804': 'UA', '807': 'MK', '818': 'EG', '826': 'GB', '834': 'TZ',
-		'840': 'US', '854': 'BF', '858': 'UY', '860': 'UZ', '862': 'VE', '882': 'WS',
-		'887': 'YE', '894': 'ZM'
-	};
+		function initGlobe() {
+			const width = 960;
+			const height = 640;
 
-	function getCountryName(feature){
-		const id = feature.id ? feature.id.toString().replace(/^0+/, '') : feature.id;
-		if (countryNames[id]) {
-			return countryNames[id];
+			const svg = d3.select('#globe').append('svg')
+				.attr('viewBox', `0 0 ${width} ${height}`)
+				.attr('preserveAspectRatio','xMidYMid meet');
+
+			const projection = d3.geoOrthographic()
+				.scale(280)
+				.translate([width/2, height/2])
+				.clipAngle(90);
+
+			const path = d3.geoPath().projection(projection);
+
+			svg.append('circle').attr('class','sea')
+				.attr('cx', width/2).attr('cy', height/2)
+				.attr('r', projection.scale());
+
+			const g = svg.append('g');
+
+			// Graticule
+			const graticule = d3.geoGraticule10();
+			g.append('path').datum(graticule).attr('class','graticule').attr('d', path);
+
+			// Tooltip
+			const tooltip = d3.select('body').append('div')
+				.attr('class','tooltip')
+				.style('position', 'absolute')
+				.style('background', 'rgba(0, 0, 0, 0.8)')
+				.style('color', 'white')
+				.style('padding', '8px 12px')
+				.style('border-radius', '4px')
+				.style('font-size', '14px')
+				.style('font-family', 'Arial, sans-serif')
+				.style('pointer-events', 'none')
+				.style('z-index', '1000')
+				.style('display','none');
+
+			// Country name mapping
+			const countryNames = {
+				'4': 'Afghanistan', '8': 'Albania', '12': 'Algeria', '16': 'American Samoa',
+				// ...existing code...
+			};
+			// ...existing code for the rest of the globe...
 		}
-		const props = feature.properties || {};
-		const nameOptions = [
-			props.NAME, props.name, props.NAME_EN, props.NAME_LONG,
+
+
+		// Initialize globe immediately on DOMContentLoaded
+		document.addEventListener('DOMContentLoaded', function() {
+			const date = new Date();
+			document.getElementById('persistentDate').textContent =
+				`as of: ${date.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}`;
+			document.getElementById('globe').style.display = '';
+			initGlobe();
+		});
 			props.ADMIN, props.admin, props.NAME_SORT, props.NAME_LOCAL,
 			props.SOVEREIGNT, props.GEOUNIT
 		];
@@ -239,31 +249,35 @@
 			.on('click', function(e, d) {
 				const countryName = getCountryName(d);
 				const centroid = d3.geoCentroid(d);
-				
+
+				// Hide zoom controls
+				var zoomControls = document.getElementById('zoomControlsWrap');
+				if (zoomControls) zoomControls.style.display = 'none';
+
 				selectedCentroid = centroid;
 				showCards(countryName, d.id);
-				
+
 				pinGroup.selectAll('*').remove();
-				
+
 				if (centroid) {
 					rotation.lambda = -centroid[0];
 					rotation.phi = -centroid[1];
 					projection.rotate([rotation.lambda, rotation.phi]);
 					render();
-					
+
 					const pinCoords = projection(centroid);
 					if (pinCoords) {
 						const pin = pinGroup.append('g')
 							.attr('class', 'volleyball-pin')
 							.attr('transform', `translate(${pinCoords[0]},${pinCoords[1]})`);
-						
+
 						pin.append('line')
 							.attr('x1', 0).attr('y1', 0)
 							.attr('x2', 0).attr('y2', -35)
 							.attr('stroke', '#ffd700')
 							.attr('stroke-width', 3.5)
 							.style('opacity', 1);
-						
+
 						pin.append('circle')
 							.attr('cx', 0).attr('cy', -35)
 							.attr('r', 12)
@@ -271,7 +285,7 @@
 							.attr('stroke', '#ffd700')
 							.attr('stroke-width', 2.5)
 							.style('opacity', 1);
-						
+
 						pin.append('path')
 							.attr('d', 'M-8,-35 Q0,-28 8,-35 M-8,-35 Q0,-42 8,-35')
 							.attr('stroke', '#333')
