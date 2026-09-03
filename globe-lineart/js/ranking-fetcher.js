@@ -35,6 +35,8 @@ const RankingFetcher = (function() {
 		'France': '250',
 		'Germany': '276',
 		'Russia': '643',
+		'Russian Federation': '643',
+		'Belarus': '112',
 		'Serbia': '688',
 		'Argentina': '032',
 		'Canada': '124',
@@ -72,11 +74,12 @@ const RankingFetcher = (function() {
 	 * @param {string} gender - 'men' or 'women'
 	 * @returns {Promise<Array>} Array of ranking objects
 	 */
-	async function fetchCurrentRankings(gender) {
+	async function fetchCurrentRankings(gender, options = {}) {
 		// Use cache if fresh (within 1 hour)
 		const cacheTime = rankingsCache.lastFetch[gender];
 		const now = Date.now();
-		if (rankingsCache[gender] && cacheTime && (now - cacheTime) < 3600000) {
+		const cacheMaxAge = Number.isFinite(Number(options.maxAgeMs)) ? Number(options.maxAgeMs) : 3600000;
+		if (!options.force && rankingsCache[gender] && cacheTime && (now - cacheTime) < cacheMaxAge) {
 			return rankingsCache[gender];
 		}
 		
@@ -84,41 +87,48 @@ const RankingFetcher = (function() {
 			const genderCode = gender === 'women' ? 0 : 1;
 			
 			// Fetch from pages 0 and 1 (50 teams each = 100 total)
-			const allTeams = [];
-			const pages = [0, 1];
-			
-			for (const page of pages) {
+			const pages = [0, 1, 2, 3];
+			const pageResults = await Promise.allSettled(pages.map(async page => {
 				const apiUrl = `${FIVB_API_BASE}/${genderCode}/${page}/50`;
-				
 				const response = await fetch(apiUrl);
-				
 				if (!response.ok) {
 					throw new Error(`HTTP ${response.status} on page ${page}`);
 				}
-				
-				const data = await response.json();
-				
-				// API returns array directly, or might have teams property
-				const teams = Array.isArray(data) ? data : (data.teams || data);
-				if (teams && teams.length > 0) {
-					allTeams.push(...teams);
+				const rawBody = await response.text();
+				if (!rawBody.trim()) return [];
+				let data;
+				try {
+					data = JSON.parse(rawBody);
+				} catch (error) {
+					throw new Error(`Invalid JSON on page ${page}`);
 				}
+				const teams = Array.isArray(data) ? data : (data.teams || data);
+				return Array.isArray(teams) ? teams : [];
+			}));
+			const successfulPages = pageResults
+				.filter(result => result.status === 'fulfilled')
+				.map(result => result.value);
+			if (!successfulPages.length) {
+				throw new Error('No ranking pages returned valid data');
 			}
+			const allTeams = successfulPages.flat();
 			
 			// Transform FIVB API data to our format
 			const rankings = allTeams
-				.filter(team => team.decimalPoints && team.decimalPoints !== '')
 				.map((team, index) => {
+					const rawPoints = team.decimalPoints ?? team.points ?? team.wrs;
+					const points = Number(rawPoints);
+					if (!Number.isFinite(points)) return null;
 					// Extract points progression from teamMatches
 					const pointsProgression = extractPointsProgression(team);
 					const teamMatches = Array.isArray(team.teamMatches) ? team.teamMatches : [];
 					
 					return {
-						rank: index + 1,
-						federationName: team.federationName,
+						rank: Number(team.rankToDisplay || team.rank) || index + 1,
+						federationName: String(team.federationName || team.name || '').trim(),
 						federationCode: team.federationCode || '',
-						countryName: team.federationName,
-						points: parseFloat(team.decimalPoints),
+						countryName: String(team.federationName || team.name || '').trim(),
+						points,
 						iso3: federationToIso3[team.federationName] || null,
 						participationPoints: team.participationPoints || 0,
 						gamesPlayed: team.gamesPlayed || 0,
@@ -132,7 +142,8 @@ const RankingFetcher = (function() {
 						teamMatches,
 						teamAge: Number.isFinite(Number(team.teamAge)) ? Number(team.teamAge) : (Number.isFinite(Number(team.age)) ? Number(team.age) : null)
 					};
-				});
+				})
+				.filter(Boolean);
 			
 			// Cache the results
 			rankingsCache[gender] = rankings;
@@ -204,6 +215,7 @@ const RankingFetcher = (function() {
 			'us': 'united states',
 			'u s a': 'united states',
 			'russian federation': 'russia',
+			'belarus republic': 'belarus',
 			'bih': 'bosnia and herzegovina',
 			'bosnia and herz': 'bosnia and herzegovina',
 			'bosnia and herzeg': 'bosnia and herzegovina',
@@ -314,6 +326,87 @@ const RankingFetcher = (function() {
 				flagUrl: r.flagUrl || '',
 				wrs: r.points
 			}));
+	}
+
+	function getCompetitionDisplayName(eventName, confederationCode) {
+		const event = String(eventName || '').trim();
+		const confederation = String(confederationCode || '').toUpperCase();
+		if (/vnl|nations\s*league/i.test(event)) return 'Volleyball Nations League';
+		if (confederation === 'CEV') return 'CEV EuroVolley';
+		if (confederation === 'AVC') return 'AVC Asian Championship';
+		if (confederation === 'CAVB') return 'CAVB African Championship';
+		if (confederation === 'CSV') return 'CSV South American Championship';
+		if (confederation === 'NORCECA') return 'NORCECA Championship';
+		return event || 'Continental Championship';
+	}
+
+	/**
+	 * Detect competitions represented by recent dated matches in the live ranking API.
+	 * The API does not expose a single active-competition endpoint, so recent match
+	 * records are the source of truth for event, date, confederation, and teams.
+	 */
+	async function getActiveCompetitions(gender, options = {}) {
+		const rankings = await fetchCurrentRankings(gender, { force: !!options.force, maxAgeMs: options.maxAgeMs });
+		const now = options.now instanceof Date ? options.now : new Date();
+		const recentDays = Number.isFinite(Number(options.recentDays)) ? Number(options.recentDays) : 1;
+		const cutoff = now.getTime() - (recentDays * 24 * 60 * 60 * 1000);
+		const upcomingCutoff = now.getTime() + (Number.isFinite(Number(options.upcomingDays)) ? Number(options.upcomingDays) : 60) * 24 * 60 * 60 * 1000;
+		const groups = new Map();
+		const upcomingGroups = new Map();
+
+		rankings.forEach(team => {
+			const teamName = String(team.federationName || '').trim();
+			const teamCode = String(team.federationCode || '').toUpperCase().trim();
+			const confederationCode = String(team.confederationCode || '').toUpperCase().trim();
+			(team.teamMatches || []).forEach(match => {
+				const date = new Date(match?.localDate || match?.date || '');
+				const eventName = String(match?.eventName || match?.event || '').trim();
+				if (!eventName || Number.isNaN(date.getTime())) return;
+				const isUpcoming = date.getTime() > now.getTime() && date.getTime() <= upcomingCutoff;
+				if (isUpcoming) {
+					const key = `${eventName.toLowerCase()}|${confederationCode}`;
+					if (!upcomingGroups.has(key)) {
+						upcomingGroups.set(key, { key, label: getCompetitionDisplayName(eventName, confederationCode), shortLabel: getCompetitionDisplayName(eventName, confederationCode), confederationCode, firstMatchDate: date.toISOString(), participants: new Map() });
+					}
+					const group = upcomingGroups.get(key);
+					if (date.getTime() < new Date(group.firstMatchDate).getTime()) group.firstMatchDate = date.toISOString();
+					if (teamName) group.participants.set(teamCode || teamName, { name: teamName, code: teamCode });
+					return;
+				}
+				if (date.getTime() < cutoff || date.getTime() > now.getTime()) return;
+				const key = `${eventName.toLowerCase()}|${confederationCode}`;
+				if (!groups.has(key)) {
+					groups.set(key, {
+						key,
+						label: getCompetitionDisplayName(eventName, confederationCode),
+						shortLabel: getCompetitionDisplayName(eventName, confederationCode),
+						confederationCode,
+						latestMatchDate: date.toISOString(),
+						participants: new Map()
+					});
+				}
+				const group = groups.get(key);
+				if (date.getTime() > new Date(group.latestMatchDate).getTime()) group.latestMatchDate = date.toISOString();
+				if (teamName) group.participants.set(teamCode || teamName, { name: teamName, code: teamCode });
+			});
+		});
+
+		const ongoing = Array.from(groups.values())
+			.filter(group => group.participants.size > 1)
+			.sort((a, b) => new Date(b.latestMatchDate) - new Date(a.latestMatchDate))
+			.map(group => ({
+				key: group.key,
+				label: group.label,
+				shortLabel: group.shortLabel,
+				confederationCode: group.confederationCode,
+				latestMatchDate: group.latestMatchDate,
+				participants: Array.from(group.participants.values())
+			}));
+		const upcoming = Array.from(upcomingGroups.values())
+			.filter(group => group.participants.size > 1)
+			.sort((a, b) => new Date(a.firstMatchDate) - new Date(b.firstMatchDate))
+			.map(group => ({ key: group.key, label: group.label, shortLabel: group.shortLabel, confederationCode: group.confederationCode, firstMatchDate: group.firstMatchDate, participants: Array.from(group.participants.values()) }));
+		return { ongoing, upcoming };
 	}
 
 	const VNL_EVENT_REGEX = /(vnl|nations\s*league)/i;
@@ -767,7 +860,7 @@ const RankingFetcher = (function() {
 			'egypt': 'eg', 'cameroon': 'cm', 'tunisia': 'tn', 'iran': 'ir',
 			'australia': 'au', 'peru': 'pe', 'greece': 'gr', 'spain': 'es',
 			'portugal': 'pt', 'croatia': 'hr', 'sweden': 'se', 'norway': 'no',
-			'romania': 'ro', 'russia': 'ru',
+			'romania': 'ro', 'russia': 'ru', 'russian federation': 'ru', 'belarus': 'by',
 			// Caribbean & Central America
 			'jamaica': 'jm', 'trinidad and tobago': 'tt', 'barbados': 'bb',
 			'bermuda': 'bm', 'saint lucia': 'lc', 'st. lucia': 'lc',
@@ -841,6 +934,7 @@ const RankingFetcher = (function() {
 		getCountryRanking,
 		getTopRankings,
 		getAllRankings,
+		getActiveCompetitions,
 		getVnlSeasonSnapshot,
 		getCurrentVnlTeams,
 		getTournamentTeams,

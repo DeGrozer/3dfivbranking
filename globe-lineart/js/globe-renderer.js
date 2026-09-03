@@ -178,17 +178,18 @@ const GlobeRenderer = (function() {
 				const index = countries.indexOf(d);
 				d3.select(lands.nodes()[index]).classed('hover', true);
 				const countryName = getCountryName(d);
-				const vnlInfo = window.getVnlBadgeInfo ? window.getVnlBadgeInfo(countryName) : null;
+				const competition = window.getCountryCompetitionInfo ? window.getCountryCompetitionInfo(countryName) : null;
 				const isVnlMode = !!(window.isTournamentVnlModeEnabled && window.isTournamentVnlModeEnabled());
-				hoveredVnlCentroid = vnlInfo ? d3.geoCentroid(d) : null;
-				hoveredVnlFeature = vnlInfo ? d : null;
-				hoveredVnlInfo = vnlInfo;
+				const vnlInfo = window.getVnlBadgeInfo ? window.getVnlBadgeInfo(countryName) : null;
+				hoveredVnlCentroid = isVnlMode && vnlInfo ? d3.geoCentroid(d) : null;
+				hoveredVnlFeature = isVnlMode && vnlInfo ? d : null;
+				hoveredVnlInfo = isVnlMode ? vnlInfo : null;
 				renderVnlHoverMarker();
 
 				if (isVnlMode && vnlInfo) {
 					tooltip.style('display', 'none');
 				} else {
-					tooltip.style('display', 'block').text(countryName);
+					tooltip.style('display', 'block').text(competition ? `${countryName} • ${competition.shortLabel}` : countryName);
 				}
 			})
 			.on('mousemove', (e) => {

@@ -16,6 +16,51 @@
 	let vnlStatusPopupAnimationCleanup = null;
 	let vnlCardPreviewTimer = null;
 	let lastSelectedCountryContext = null;
+	let activeCompetitions = [];
+	let upcomingCompetitions = [];
+
+	function getActiveCompetition() {
+		return activeCompetitions[0] || null;
+	}
+
+	async function refreshActiveCompetitions() {
+		try {
+			const competitionState = await RankingFetcher.getActiveCompetitions(currentGender, { recentDays: 1, maxAgeMs: 300000 });
+			activeCompetitions = competitionState.ongoing || [];
+			upcomingCompetitions = competitionState.upcoming || [];
+		} catch (error) {
+			activeCompetitions = [];
+			console.warn('Unable to detect active competitions from API:', error);
+		}
+		updateActiveCompetition();
+		if (lastSelectedCountryContext && document.querySelector('.country-card')?.classList.contains('show')) {
+			showCountryCard(
+				lastSelectedCountryContext.countryName,
+				lastSelectedCountryContext.countryId,
+				lastSelectedCountryContext.ranking
+			);
+		}
+	}
+
+	function updateActiveCompetition() {
+		const element = document.getElementById('activeCompetition');
+		if (!element) return;
+		element.innerHTML = activeCompetitions.length
+			? activeCompetitions.map(item => `<span class="competition-item"><b>${escapeHtml(item.label)}</b><small>${escapeHtml(item.confederationCode || 'World')} · latest match ${new Date(item.latestMatchDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</small></span>`).join('')
+			: upcomingCompetitions.length
+				? `<span class="competition-heading">Upcoming</span>${upcomingCompetitions.map(item => `<span class="competition-item"><b>${escapeHtml(item.label)}</b><small>${escapeHtml(item.confederationCode || 'World')} · starts ${new Date(item.firstMatchDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</small></span>`).join('')}`
+				: '<span class="competition-empty">No ongoing competition detected</span>';
+	element.classList.toggle('is-active', activeCompetitions.length > 0);
+	}
+
+	function getCountryCompetitionInfo(countryName, ranking = null) {
+		if (!activeCompetitions.length) return null;
+		const normalizedCountry = normalizeTeamName(countryName);
+		const rankingCode = String(ranking?.federationCode || '').toUpperCase().trim();
+		return activeCompetitions.find(competition => (competition.participants || []).some(participant => {
+			return (rankingCode && participant.code === rankingCode) || normalizeTeamName(participant.name) === normalizedCountry;
+		})) || null;
+	}
 
 	function isMobileViewport() {
 		return window.matchMedia('(max-width: 768px)').matches;
@@ -1204,6 +1249,7 @@
 	async function init() {
 		try {
 			window.getVnlBadgeInfo = getVnlCountryInfo;
+			window.getCountryCompetitionInfo = getCountryCompetitionInfo;
 			window.isTournamentVnlModeEnabled = () => isVnlTournamentMode();
 			window.isCountryInActiveTournament = isCountryInActiveTournament;
 			
@@ -1226,6 +1272,8 @@
 			setupInfoModal();
 			setupMobileTitleToggle();
 			setupReleaseNotesModal();
+			void refreshActiveCompetitions();
+			setInterval(() => { void refreshActiveCompetitions(); }, 5 * 60 * 1000);
 			
 			// Setup country selection callback
 			window.onCountrySelected = handleCountrySelection;
@@ -1348,12 +1396,14 @@
 			if (currentGender === 'women') return;
 			currentGender = 'women';
 			updateGenderUI();
+			void refreshActiveCompetitions();
 		});
 		
 		btnMen.addEventListener('click', () => {
 			if (currentGender === 'men') return;
 			currentGender = 'men';
 			updateGenderUI();
+			void refreshActiveCompetitions();
 		});
 	}
 	
@@ -1706,25 +1756,15 @@
 
 		content.innerHTML = `
 			<div class="tournament-picker-grid">
+				<button type="button" class="tournament-select-btn tournament-clear-btn ${!activeTournamentType ? 'selected' : ''}" data-tournament-select="all">
+					<i class="fa-solid fa-globe"></i>
+					<span class="tournament-select-title">Clear filter</span>
+					<span class="tournament-select-subtitle">Show all countries</span>
+				</button>
 				<button type="button" class="tournament-select-btn ${activeTournamentType === 'vnl' ? 'selected' : ''}" data-tournament-select="vnl">
 					<i class="fa-solid fa-volleyball"></i>
 					<span class="tournament-select-title tournament-select-title-vnl">VNL</span>
 					<span class="tournament-select-subtitle">Volleyball Nations League</span>
-				</button>
-				<button type="button" class="tournament-select-btn is-under-construction" data-tournament-select="world" data-under-construction="1" disabled>
-					<span class="tournament-construction-tape">Under Construction</span>
-					<i class="fa-solid fa-earth-europe"></i>
-					<span>World Championship</span>
-				</button>
-				<button type="button" class="tournament-select-btn is-under-construction" data-tournament-select="eurovolley" data-under-construction="1" disabled>
-					<span class="tournament-construction-tape">Under Construction</span>
-					<i class="fa-solid fa-flag-checkered"></i>
-					<span>EuroVolley</span>
-				</button>
-				<button type="button" class="tournament-select-btn is-under-construction" data-tournament-select="olympics" data-under-construction="1" disabled>
-					<span class="tournament-construction-tape">Under Construction</span>
-					<i class="fa-solid fa-medal"></i>
-					<span>Olympics</span>
 				</button>
 			</div>
 		`;
@@ -1794,7 +1834,7 @@
 			const displayRankings = isVnlTournamentMode(activeTournamentType)
 				? rankings.filter(team => {
 					const vnlStatus = getVnlCountryStatus(team.teamName || '');
-					return !!vnlStatus;
+					return !!vnlStatus && vnlStatus.status !== 'relegated';
 				})
 				: rankings;
 
@@ -2053,6 +2093,7 @@
 
 		const isVnlMode = isVnlTournamentMode(activeTournamentType);
 		const vnlStatus = isVnlMode ? getVnlCountryStatus(countryName) : null;
+		const detectedCompetition = getCountryCompetitionInfo(countryName, ranking);
 		const medalTier = getWorldRankMedalTier(ranking?.rank, activeTournamentType);
 		const isChampion = !!(vnlStatus?.isDefendingChampion && vnlStatus?.status !== 'relegated');
 		const isRelegated = vnlStatus?.status === 'relegated';
@@ -2111,6 +2152,7 @@
 			const sparklineHtml = generateSparkline(ranking.pointsProgression);
 			
 			bodyHtml = `
+				${detectedCompetition ? `<div class="competition-context"><span><small>Competing in</small><strong>${escapeHtml(detectedCompetition.label)}</strong></span></div>` : ''}
 				<div class="flex items-center justify-between mb-3">
 					<div>
 						<p class="text-xs text-gray-400 uppercase">World Rank</p>

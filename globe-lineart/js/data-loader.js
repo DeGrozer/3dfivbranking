@@ -50,7 +50,7 @@ const DataLoader = (function() {
 	const countryNameToIso3 = {
 		'United States': '840', 'Brazil': '076', 'Poland': '616', 'Italy': '380',
 		'Japan': '392', 'China': '156', 'France': '250', 'Germany': '276',
-		'Russia': '643', 'Serbia': '688', 'Argentina': '032', 'Canada': '124',
+		'Russia': '643', 'Russian Federation': '643', 'Belarus': '112', 'Serbia': '688', 'Argentina': '032', 'Canada': '124',
 		'Netherlands': '528', 'Turkey': '792', 'Iran': '364', 'Egypt': '818',
 		'Tunisia': '788', 'Cuba': '192', 'Slovenia': '705', 'Bulgaria': '100',
 		'Australia': '036', 'Mexico': '484', 'South Korea': '410', 'Belgium': '056',
