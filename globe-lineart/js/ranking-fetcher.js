@@ -23,6 +23,10 @@ const RankingFetcher = (function() {
 			women: null
 		}
 	};
+	let rankingRequests = {
+		men: null,
+		women: null
+	};
 	
 	// Federation name to country ISO3 mapping (for flag lookup)
 	const federationToIso3 = {
@@ -82,7 +86,9 @@ const RankingFetcher = (function() {
 		if (!options.force && rankingsCache[gender] && cacheTime && (now - cacheTime) < cacheMaxAge) {
 			return rankingsCache[gender];
 		}
+		if (rankingRequests[gender]) return rankingRequests[gender];
 		
+		rankingRequests[gender] = (async () => {
 		try {
 			const genderCode = gender === 'women' ? 0 : 1;
 			
@@ -153,6 +159,12 @@ const RankingFetcher = (function() {
 		} catch (error) {
 			console.error(`Error fetching ${gender} rankings:`, error);
 			throw error;
+		}
+		})();
+		try {
+			return await rankingRequests[gender];
+		} finally {
+			rankingRequests[gender] = null;
 		}
 	}
 	
