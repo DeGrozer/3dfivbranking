@@ -2446,6 +2446,20 @@ body.country-card-open #activeCompetition {
 	border-radius: 6px !important;
 }
 
+@media (min-width: 1025px) {
+	.country-card {
+		left: auto !important;
+		right: 28px !important;
+		top: 50% !important;
+		max-height: calc(100vh - 120px) !important;
+		transform: translateY(-50%) scale(0.9) !important;
+	}
+
+	.country-card.show {
+		transform: translateY(-50%) scale(1) !important;
+	}
+}
+
 .country-card .close-btn {
 	background: rgba(248, 250, 252, 0.92);
 	color: #334155;
