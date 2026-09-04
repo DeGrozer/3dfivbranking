@@ -538,6 +538,12 @@ body.country-card-open .globe-status {
 	transition: transform 0.35s ease;
 }
 
+@media (min-width: 1025px) {
+	body.country-card-open #globe {
+		transform: translateX(-clamp(60px, 8vw, 130px));
+	}
+}
+
 .zoom-btn {
 	width: 52px;
 	height: 52px;
