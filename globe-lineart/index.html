@@ -53,9 +53,10 @@
 				</button>
 			</div>
 			<div class="release-notes-body">
-				<p>Current-season VNL teams now follow official competition roster pages.</p>
-				<p>VNL mode tracks newcomers, relegated teams, and defending champions.</p>
-				<p>Podium colors now highlight world ranking tiers for competition view.</p>
+				<p>Rankings now load through one request and reuse fresh results between pages.</p>
+				<p>Competition detection now includes recent matches across time zones.</p>
+				<p>Controls have a flatter VNL-branded look with clearer active states.</p>
+				<p>Selecting a country keeps the globe clear while gently de-emphasizing the status text.</p>
 			</div>
 		</div>
 	</div>
@@ -90,6 +91,11 @@
 		<button id="btnInfo" class="info-fab-sidebar sidebar-item" aria-label="Project info" title="Project info">
 			<i class="fa-solid fa-circle-info" aria-hidden="true"></i>
 			<span class="menu-label">About</span>
+		</button>
+
+		<button id="openReleaseNotes" class="info-fab-sidebar sidebar-item" type="button" aria-label="Patch notes" title="Patch notes">
+			<i class="fa-solid fa-scroll" aria-hidden="true"></i>
+			<span class="menu-label">Notes</span>
 		</button>
 
 		<!-- Spacer -->
@@ -163,7 +169,6 @@
 				<p class="info-line"><i class="fa-solid fa-database" aria-hidden="true"></i><span>Ranking list is sourced from official FIVB ranking data endpoints.</span></p>
 				<p class="info-line"><i class="fa-solid fa-copyright" aria-hidden="true"></i><span>Credits: FIVB / Volleyball World for ranking and federation data.</span></p>
 				<p class="info-line"><i class="fa-solid fa-calendar-days" aria-hidden="true"></i><span>Upcoming focus event: Volleyball Nations League (VNL).</span></p>
-				<button id="openReleaseNotesFromInfo" type="button" class="info-notes-btn">Patch Notes</button>
 				<p class="info-line"><i class="fa-solid fa-user" aria-hidden="true"></i><span><strong>Created by:</strong> Jan Andrew R. Barte</span></p>
 				<p class="info-line"><i class="fa-brands fa-github" aria-hidden="true"></i><span><strong>GitHub:</strong> <a href="https://github.com/DeGrozer" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-700 underline">github.com/DeGrozer</a></span></p>
 			</div>

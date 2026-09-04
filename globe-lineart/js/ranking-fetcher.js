@@ -27,6 +27,30 @@ const RankingFetcher = (function() {
 		men: null,
 		women: null
 	};
+	const RANKINGS_STORAGE_KEY = 'volleyball-rankings-cache-v1';
+
+	function readStoredRankings(gender, maxAge) {
+		try {
+			if (typeof localStorage === 'undefined') return null;
+			const stored = JSON.parse(localStorage.getItem(RANKINGS_STORAGE_KEY) || '{}');
+			const entry = stored[gender];
+			if (!entry || !Array.isArray(entry.rankings) || (Date.now() - entry.timestamp) >= maxAge) return null;
+			return entry;
+		} catch (error) {
+			return null;
+		}
+	}
+
+	function writeStoredRankings(gender, timestamp, rankings) {
+		try {
+			if (typeof localStorage === 'undefined') return;
+			const stored = JSON.parse(localStorage.getItem(RANKINGS_STORAGE_KEY) || '{}');
+			stored[gender] = { timestamp, rankings };
+			localStorage.setItem(RANKINGS_STORAGE_KEY, JSON.stringify(stored));
+		} catch (error) {
+			// Storage may be unavailable or full; in-memory caching still applies.
+		}
+	}
 	
 	// Federation name to country ISO3 mapping (for flag lookup)
 	const federationToIso3 = {
@@ -86,38 +110,41 @@ const RankingFetcher = (function() {
 		if (!options.force && rankingsCache[gender] && cacheTime && (now - cacheTime) < cacheMaxAge) {
 			return rankingsCache[gender];
 		}
+		if (!options.force) {
+			const stored = readStoredRankings(gender, cacheMaxAge);
+			if (stored) {
+				rankingsCache[gender] = stored.rankings;
+				rankingsCache.lastFetch[gender] = stored.timestamp;
+				return stored.rankings;
+			}
+		}
 		if (rankingRequests[gender]) return rankingRequests[gender];
 		
 		rankingRequests[gender] = (async () => {
 		try {
 			const genderCode = gender === 'women' ? 0 : 1;
 			
-			// Fetch from pages 0 and 1 (50 teams each = 100 total)
-			const pages = [0, 1, 2, 3];
-			const pageResults = await Promise.allSettled(pages.map(async page => {
-				const apiUrl = `${FIVB_API_BASE}/${genderCode}/${page}/50`;
-				const response = await fetch(apiUrl);
-				if (!response.ok) {
-					throw new Error(`HTTP ${response.status} on page ${page}`);
-				}
-				const rawBody = await response.text();
-				if (!rawBody.trim()) return [];
-				let data;
-				try {
-					data = JSON.parse(rawBody);
-				} catch (error) {
-					throw new Error(`Invalid JSON on page ${page}`);
-				}
-				const teams = Array.isArray(data) ? data : (data.teams || data);
-				return Array.isArray(teams) ? teams : [];
-			}));
-			const successfulPages = pageResults
-				.filter(result => result.status === 'fulfilled')
-				.map(result => result.value);
-			if (!successfulPages.length) {
-				throw new Error('No ranking pages returned valid data');
+			// The API supports a single 200-team response, avoiding four parallel
+			// connections and repeated server overhead during ranking-dependent work.
+			const apiUrl = `${FIVB_API_BASE}/${genderCode}/0/200`;
+			const response = await fetch(apiUrl);
+			if (!response.ok) {
+				throw new Error(`HTTP ${response.status} while loading rankings`);
 			}
-			const allTeams = successfulPages.flat();
+			const rawBody = await response.text();
+			if (!rawBody.trim()) {
+				throw new Error('Ranking API returned an empty response');
+			}
+			let data;
+			try {
+				data = JSON.parse(rawBody);
+			} catch (error) {
+				throw new Error('Ranking API returned invalid JSON');
+			}
+			const allTeams = Array.isArray(data) ? data : (data.teams || data);
+			if (!Array.isArray(allTeams)) {
+				throw new Error('Ranking API returned no teams');
+			}
 			
 			// Transform FIVB API data to our format
 			const rankings = allTeams
@@ -154,6 +181,7 @@ const RankingFetcher = (function() {
 			// Cache the results
 			rankingsCache[gender] = rankings;
 			rankingsCache.lastFetch[gender] = now;
+			writeStoredRankings(gender, now, rankings);
 			return rankings;
 			
 		} catch (error) {
@@ -361,7 +389,10 @@ const RankingFetcher = (function() {
 		const rankings = await fetchCurrentRankings(gender, { force: !!options.force, maxAgeMs: options.maxAgeMs });
 		const now = options.now instanceof Date ? options.now : new Date();
 		const recentDays = Number.isFinite(Number(options.recentDays)) ? Number(options.recentDays) : 1;
-		const cutoff = now.getTime() - (recentDays * 24 * 60 * 60 * 1000);
+		// Ranking match dates are published at UTC midnight. Compare calendar days
+		// so a match from yesterday is not lost to the user's local time zone.
+		const todayUtc = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+		const cutoff = todayUtc - (recentDays * 24 * 60 * 60 * 1000);
 		const upcomingCutoff = now.getTime() + (Number.isFinite(Number(options.upcomingDays)) ? Number(options.upcomingDays) : 60) * 24 * 60 * 60 * 1000;
 		const groups = new Map();
 		const upcomingGroups = new Map();

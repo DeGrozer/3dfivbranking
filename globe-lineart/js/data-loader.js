@@ -154,7 +154,7 @@ const DataLoader = (function() {
 	 * @throws {Error} If world map cannot be loaded from any source
 	 */
 	async function loadWorldMap() {
-		const mapSources = [API_CONFIG.map.cdn, API_CONFIG.map.local];
+		const mapSources = [API_CONFIG.map.local, API_CONFIG.map.cdn];
 		
 		for (const mapUrl of mapSources) {
 			try {

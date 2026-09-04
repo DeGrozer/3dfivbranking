@@ -236,7 +236,7 @@
 	async function loadRankings() {
 		listEl.innerHTML = '<div class="loading-row">Loading rankings...</div>';
 		try {
-			await updateAsOfDate();
+			void updateAsOfDate();
 			const [rankings, tournamentFilter] = await Promise.all([
 				RankingFetcher.getAllRankings(currentGender),
 				getTournamentFilterSet()
@@ -273,7 +273,7 @@
 	async function init() {
 		parseParams();
 		updateHeaderState();
-		await updateOngoingCompetition();
+		void updateOngoingCompetition();
 		womenTab.addEventListener('click', () => void switchGender('women'));
 		menTab.addEventListener('click', () => void switchGender('men'));
 		await loadRankings();

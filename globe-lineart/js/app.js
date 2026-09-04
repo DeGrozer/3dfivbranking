@@ -730,7 +730,7 @@
 	function setupReleaseNotesModal() {
 		const modal = document.getElementById('releaseNotesModal');
 		const closeBtn = document.getElementById('releaseNotesClose');
-		const openFromInfoBtn = document.getElementById('openReleaseNotesFromInfo');
+		const openReleaseNotesBtn = document.getElementById('openReleaseNotes');
 		if (!modal) return;
 
 		const closeModal = () => {
@@ -748,9 +748,8 @@
 			}
 		});
 
-		if (openFromInfoBtn) {
-			openFromInfoBtn.addEventListener('click', () => {
-				hideInfoModal();
+		if (openReleaseNotesBtn) {
+			openReleaseNotesBtn.addEventListener('click', () => {
 				showReleaseNotesModal();
 			});
 		}
