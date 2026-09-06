@@ -64,6 +64,20 @@ body {
 	color: var(--ink-soft);
 }
 
+.under-construction {
+	display: inline-flex;
+	margin: 7px 0 0;
+	padding: 4px 9px;
+	border: 1px solid rgba(230, 21, 85, 0.3);
+	border-radius: 999px;
+	background: #fff0f5;
+	color: #b50f43;
+	font-size: 11px;
+	font-weight: 800;
+	letter-spacing: 0.7px;
+	text-transform: uppercase;
+}
+
 .header-actions {
 	display: flex;
 	gap: 8px;

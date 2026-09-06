@@ -64,65 +64,6 @@ body {
 	letter-spacing: 0.25px;
 }
 
-.ongoing-competition {
-	display: grid;
-	gap: 5px;
-	width: fit-content;
-	margin: 0 0 10px;
-	padding: 5px 8px;
-	border-left: 3px solid var(--vnl-yellow);
-	background: #fff9dc;
-	color: #806900;
-	font-size: 12px;
-	font-weight: 800;
-	letter-spacing: 0.25px;
-}
-
-.ongoing-competition::before {
-	content: 'ONGOING NOW';
-	font-size: 9px;
-	font-weight: 900;
-	letter-spacing: 1px;
-	color: #1c69a5;
-}
-
-.ongoing-competition .competition-item {
-	display: grid;
-	gap: 1px;
-	padding: 2px 0;
-}
-
-.ongoing-competition .competition-item b {
-	font-size: 12px;
-	font-weight: 800;
-	color: #b30f43;
-}
-
-.ongoing-competition .competition-item small {
-	font-size: 10px;
-	font-weight: 600;
-	color: #71859a;
-}
-
-.ongoing-competition .competition-empty,
-.ongoing-competition .competition-loading {
-	font-size: 12px;
-}
-
-.ongoing-competition .competition-heading {
-	font-size: 9px;
-	font-weight: 900;
-	letter-spacing: 1px;
-	text-transform: uppercase;
-	color: #1c69a5;
-}
-
-.ongoing-competition.is-active {
-	color: #b30f43;
-	border-left-color: var(--accent);
-	background: #fff0f5;
-}
-
 #pageTitle {
 	margin: 4px 0 0;
 	font-family: 'Barlow Condensed', sans-serif;

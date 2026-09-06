@@ -35,6 +35,8 @@ const GlobeRenderer = (function() {
 	let minScale = 200;           // Minimum zoom scale
 	let maxScale = 500;           // Maximum zoom scale
 	let zoomStep = 30;
+	let pinchStartDistance = 0;
+	let pinchStartScale = GLOBE_CONSTANTS.scale;
 	let hoveredVnlCentroid = null;
 	let hoveredVnlFeature = null;
 	let hoveredVnlInfo = null;
@@ -48,6 +50,10 @@ const GlobeRenderer = (function() {
 		if (projection) {
 			projection.scale(currentScale);
 		}
+	}
+
+	function syncZoomHint() {
+		document.body.classList.toggle('globe-zoomed', currentScale > GLOBE_CONSTANTS.scale);
 	}
 	
 	/**
@@ -65,6 +71,7 @@ const GlobeRenderer = (function() {
 		renderGlobe();
 		setupInteractions();
 		startAnimation();
+		syncZoomHint();
 	}
 	
 	/**
@@ -567,6 +574,32 @@ const GlobeRenderer = (function() {
 			if (!selectedCountry) autoRotate = true;
 		});
 
+		svg.on('touchstart.pinch', (event) => {
+			if (event.touches.length !== 2) return;
+			pinchStartDistance = Math.hypot(
+				event.touches[0].clientX - event.touches[1].clientX,
+				event.touches[0].clientY - event.touches[1].clientY
+			);
+			pinchStartScale = currentScale;
+		});
+
+		svg.on('touchmove.pinch', (event) => {
+			if (event.touches.length !== 2 || !pinchStartDistance) return;
+			event.preventDefault();
+			const distance = Math.hypot(
+				event.touches[0].clientX - event.touches[1].clientX,
+				event.touches[0].clientY - event.touches[1].clientY
+			);
+			currentScale = Math.max(minScale, Math.min(maxScale, pinchStartScale * distance / pinchStartDistance));
+			projection.scale(currentScale);
+			render();
+			syncZoomHint();
+		});
+
+		svg.on('touchend.pinch touchcancel.pinch', () => {
+			pinchStartDistance = 0;
+		});
+
 		window.addEventListener('resize', () => {
 			updateZoomBounds();
 			render();
@@ -580,6 +613,7 @@ const GlobeRenderer = (function() {
 		currentScale = Math.min(maxScale, currentScale + zoomStep);
 		projection.scale(currentScale);
 		render();
+		syncZoomHint();
 	}
 	
 	/**
@@ -589,6 +623,7 @@ const GlobeRenderer = (function() {
 		currentScale = Math.max(minScale, currentScale - zoomStep);
 		projection.scale(currentScale);
 		render();
+		syncZoomHint();
 	}
 
 	function getCurrentScale() {

@@ -12,7 +12,6 @@
 	const searchEl = document.getElementById('rankSearch');
 	const listEl = document.getElementById('rankingsBody');
 	const asOfEl = document.getElementById('asOfDate');
-	const ongoingCompetitionEl = document.getElementById('ongoingCompetition');
 	const calculatorLinkEl = document.getElementById('calculatorLink');
 
 	function parseParams() {
@@ -146,23 +145,6 @@
 		});
 	}
 
-	async function updateOngoingCompetition() {
-		if (!ongoingCompetitionEl) return;
-		try {
-			const competitionState = await RankingFetcher.getActiveCompetitions(currentGender, { recentDays: 1, maxAgeMs: 300000 });
-			const ongoing = competitionState.ongoing || [];
-			const upcoming = competitionState.upcoming || [];
-			ongoingCompetitionEl.innerHTML = ongoing.length
-				? ongoing.map(competition => `<span class="competition-item"><b>${escapeHtml(competition.label)}</b><small>${escapeHtml(competition.confederationCode || 'World')} · latest match ${new Date(competition.latestMatchDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</small></span>`).join('')
-				: upcoming.length
-					? `<span class="competition-heading">Upcoming</span>${upcoming.map(competition => `<span class="competition-item"><b>${escapeHtml(competition.label)}</b><small>${escapeHtml(competition.confederationCode || 'World')} · starts ${new Date(competition.firstMatchDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</small></span>`).join('')}`
-					: '<span class="competition-empty">No ongoing competition detected</span>';
-			ongoingCompetitionEl.classList.toggle('is-active', ongoing.length > 0);
-		} catch (error) {
-			ongoingCompetitionEl.textContent = 'Competition data unavailable';
-		}
-	}
-
 	async function updateAsOfDate() {
 		if (!asOfEl) return;
 
@@ -273,11 +255,9 @@
 	async function init() {
 		parseParams();
 		updateHeaderState();
-		void updateOngoingCompetition();
 		womenTab.addEventListener('click', () => void switchGender('women'));
 		menTab.addEventListener('click', () => void switchGender('men'));
 		await loadRankings();
-		setInterval(() => { void updateOngoingCompetition(); }, 5 * 60 * 1000);
 	}
 
 	void init();
